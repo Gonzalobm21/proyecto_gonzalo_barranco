@@ -1,0 +1,47 @@
+@import "tailwindcss";
+/* 1. Traemos solo Playfair Display. Helvetica Neue ya viene en los ordenadores/moviles */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
+
+@theme {
+  /* 2. Nueva paleta de colores de la barberia */
+  --color-fondo-claro: #F7F7FF;
+  --color-texto-oscuro: #070707;
+  --color-barber-azul: #3F88C5;
+  --color-barber-rojo: #BB0A21;
+  
+  /* 3. Asignacion de las nuevas fuentes */
+  --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-serif: "Playfair Display", serif;
+}
+
+/* 4. Aplicacion automatica a toda la pagina */
+body {
+  background-color: var(--color-fondo-claro);
+  color: var(--color-texto-oscuro);
+  font-family: var(--font-sans);
+}
+
+/* Forzamos que todos los titulos utilicen la fuente Playfair Display */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-serif);
+}
+
+
+/* Imagen de Fondo */
+
+.bg-patron {
+  /* Usamos tu color de fondo claro por defecto */
+  background-color: var(--color-fondo-claro);
+  
+  /* El SVG inline que has generado */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50'%3E%3Crect width='50' height='50' fill='%23F7F7FF'/%3E%3Cpath d='M25,0 C25,6 21,9 17,8 C13,7 11,3 14,1 C16,-1 19,1 18,4 C17,7 14,7 13,5 M25,0 C25,6 29,9 33,8 C37,7 39,3 36,1 C34,-1 31,1 32,4 C33,7 36,7 37,5 M0,25 C6,25 9,21 8,17 C7,13 3,11 1,14 C-1,16 1,19 4,18 C7,17 7,14 5,13 M0,25 C6,25 9,29 8,33 C7,37 3,39 1,36 C-1,34 1,31 4,32 C7,33 7,36 5,37 M50,25 C44,25 41,21 42,17 C43,13 47,11 49,14 C51,16 49,19 46,18 C43,17 43,14 45,13 M50,25 C44,25 41,29 42,33 C43,37 47,39 49,36 C51,34 49,31 46,32 C43,33 43,36 45,37 M25,50 C25,44 21,41 17,42 C13,43 11,47 14,49 C16,51 19,49 18,46 C17,43 14,43 13,45 M25,50 C25,44 29,41 33,42 C37,43 39,47 36,49 C34,51 31,49 32,46 C33,43 36,43 37,45 M25,0 C19,4 15,10 14,17 C13,24 17,29 23,29 C29,29 33,24 32,17 C31,10 26,6 21,8 C16,10 15,15 18,19 C21,23 26,22 28,18 C30,14 27,10 23,11 C19,12 18,16 21,18 M25,0 C31,4 35,10 36,17 C37,24 33,29 27,29 C21,29 17,24 18,17 C19,10 24,6 29,8 C34,10 35,15 32,19 C29,23 24,22 22,18 C20,14 23,10 27,11 C31,12 32,16 29,18 M0,25 C4,19 10,15 17,14 C24,13 29,17 29,23 C29,29 24,33 17,32 C10,31 6,26 8,21 C10,16 15,15 19,18 C23,21 22,26 18,28 C14,30 10,27 11,23 C12,19 16,18 18,21 M0,25 C4,31 10,35 17,36 C24,37 29,33 29,27 C29,21 24,17 17,18 C10,19 6,24 8,29 C10,34 15,35 19,32 C23,29 22,24 18,22 C14,20 10,23 11,27 C12,31 16,32 18,29 M50,25 C46,19 40,15 33,14 C26,13 21,17 21,23 C21,29 26,33 33,32 C40,31 44,26 42,21 C40,16 35,15 31,18 C27,21 28,26 32,28 C36,30 40,27 39,23 C38,19 34,18 32,21 M50,25 C46,31 40,35 33,36 C26,37 21,33 21,27 C21,21 26,17 33,18 C40,19 44,24 42,29 C40,34 35,35 31,32 C27,29 28,24 32,22 C36,20 40,23 39,27 C38,31 34,32 32,29 M25,50 C19,46 15,40 14,33 C13,26 17,21 23,21 C29,21 33,26 32,33 C31,40 26,44 21,42 C16,40 15,35 18,31 C21,27 26,28 28,32 C30,36 27,40 23,39 C19,38 18,34 21,32 M25,50 C31,46 35,40 36,33 C37,26 33,21 27,21 C21,21 17,26 18,33 C19,40 24,44 29,42 C34,40 35,35 32,31 C29,27 24,28 22,32 C20,36 23,40 27,39 C31,38 32,34 29,32' fill='none' stroke='%23c0bdb6' stroke-width='0.75' stroke-linecap='round'/%3E%3Ccircle cx='25' cy='25' r='2' fill='%23c0bdb6' opacity='0.5'/%3E%3C/svg%3E");
+  
+  background-repeat: repeat;
+  background-size: 50px 50px;
+}
+
+/* Utilidades para cambiar el tamaño del patrón si lo necesitas en el futuro */
+.patron-xs { background-size: 30px 30px; }
+.patron-sm { background-size: 50px 50px; }
+.patron-md { background-size: 80px 80px; }
+.patron-lg { background-size: 120px 120px; }
