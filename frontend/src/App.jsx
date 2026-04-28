@@ -17,8 +17,9 @@ function App() {
   useEffect(() => {
     const iniciarAplicacion = async () => {
       try {
+        console.log("Paso 1: Voy a pedir la sesión a Supabase...");
         const { data: { session }, error } = await supabase.auth.getSession();
-
+        console.log("Paso 2: Sesión recibida. Error:", error);
         //  Si Supabase nos dice que el token es inválido o hay error
         if (error) {
           console.warn("Se detectó un token corrupto. Limpiando sesión...");
@@ -32,20 +33,22 @@ function App() {
 
         // Si la sesión es válida y está limpia, buscamos su rol
         if (session) {
+          console.log("Paso 3: Hay sesión. Voy a pedir el rol a la base de datos...");
           const { data } = await supabase
             .from('usuario')
             .select('rol')
             .eq('id_usuario', session.user.id)
             .maybeSingle();
-          
+          console.log("Paso 4: Rol recibido:", data);
           if (data) setUserRole(data.rol);
         }
       } catch (err) {
-        console.error("Fallo al contactar con Supabase:", err);
+        console.error("¡BUM! Ha saltado un error crítico:", err);
         // Seguro de vida por si el servidor se cae por completo
         setSession(null); 
         setUserRole(null);
       } finally {
+        console.log("Paso 5: He llegado al finally. Voy a quitar el Loading.");
         setLoading(false); // quitamos la pantalla de carga
       }
     };
