@@ -17,9 +17,20 @@ function App() {
   useEffect(() => {
     const iniciarAplicacion = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error } = await supabase.auth.getSession();
+
+        //  Si Supabase nos dice que el token es inválido o hay error
+        if (error) {
+          console.warn("Se detectó un token corrupto. Limpiando sesión...");
+          await supabase.auth.signOut(); // Obligamos al navegador a borrar la basura
+          setSession(null);
+          setUserRole(null);
+          return; // Cortamos la ejecución aquí, no intentamos buscar el rol
+        }
+
         setSession(session);
 
+        // Si la sesión es válida y está limpia, buscamos su rol
         if (session) {
           const { data } = await supabase
             .from('usuario')
@@ -29,17 +40,20 @@ function App() {
           
           if (data) setUserRole(data.rol);
         }
-      } catch (error) {
-        console.error("Fallo al contactar con Supabase:", error);
+      } catch (err) {
+        console.error("Fallo al contactar con Supabase:", err);
+        // Seguro de vida por si el servidor se cae por completo
+        setSession(null); 
+        setUserRole(null);
       } finally {
-        setLoading(false); // Quitamos la pantalla de carga
+        setLoading(false); // quitamos la pantalla de carga
       }
     };
 
     iniciarAplicacion();
 
     // Radar en segundo plano para cambios de cuenta
-const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
   setSession(currentSession);
   
   // Si el evento es explícitamente cerrar sesión, limpiamos todo
