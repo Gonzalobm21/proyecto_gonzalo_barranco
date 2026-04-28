@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '../services/supabaseClient';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -8,6 +8,7 @@ function Login() {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const mensajeExito = location.state?.mensaje;
 
   const handleLogin = async (e) => {
@@ -23,6 +24,8 @@ function Login() {
     if (authError) {
       setError('Credenciales no válidas. Inténtalo de nuevo.');
       setLoading(false);
+    } else {
+      navigate('/');
     }
   };
 

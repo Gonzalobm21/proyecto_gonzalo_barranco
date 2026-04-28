@@ -7,20 +7,17 @@ import Footer from '../components/Footer';
 function Register() {
   const navigate = useNavigate();
   
-  // Estado para guardar lo que escribe el usuario
   const [formData, setFormData] = useState({
-  nombre: '',
-  telefono: '',
-  email: '',
-  password: '',
-  confirmPassword: '' 
-});
+    nombre: '',
+    telefono: '',
+    email: '',
+    password: '',
+    confirmPassword: '' 
+  });
 
-  // Estados para gestionar la interfaz
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Función para manejar los cambios en los inputs
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -28,35 +25,31 @@ function Register() {
     });
   };
 
-  // Función principal que se ejecuta al darle a "Crear Cuenta"
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
 
     if (formData.password !== formData.confirmPassword) {
         setError("Las contraseñas no coinciden.");
-        return; // Detenemos el proceso aquí mismo
+        return;
     }
 
     setLoading(true);
 
     try {
-      // 1. Registrar al usuario en el sistema de Autenticación de Supabase
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
           data: {
-            full_name: formData.nombre, // Le pasamos el nombre y el teléfono para que el Trigger lo pille
+            full_name: formData.nombre,
             telefono: formData.telefono
-            }
+          }
         }
       });
 
       if (signUpError) throw signUpError;
 
-      // 2. Si el registro va bien, actualizamos el teléfono en nuestra tabla pública
-      // El Trigger ya ha creado la fila con el nombre y el email
       if (data?.user) {
         const { error: updateError } = await supabase
           .from('usuario')
@@ -66,14 +59,12 @@ function Register() {
         if (updateError) throw updateError;
       }
 
-      // 3. Si está todo perfecto -> Lo mandamos al inicio de sesión
       navigate('/login', { 
         state: { mensaje: "¡Cuenta creada con éxito! Ya puedes iniciar sesión." } 
       });
 
     } catch (err) {
       console.error("Error en el registro:", err);
-      // Personalizamos los mensajes de error más comunes de Supabase
       if (err.message.includes('already registered')) {
         setError("Este email ya está registrado.");
       } else if (err.message.includes('Password should be at least')) {
@@ -87,10 +78,10 @@ function Register() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-fondo-claro text-texto-oscuro">
+    <div className="min-h-screen flex flex-col bg-patron text-texto-oscuro">
       <Navbar />
 
-      <main className="flex-grow flex items-center justify-center p-4">
+      <main className="flex-grow flex items-center justify-center p-8">
         <div className="bg-white border-4 border-texto-oscuro p-8 max-w-md w-full shadow-[12px_12px_0px_0px_rgba(7,7,7,1)]">
           <h2 className="text-4xl font-black mb-2 text-center uppercase tracking-wide">
             Únete al <span className="text-barber-azul">Club</span>
@@ -189,7 +180,6 @@ function Register() {
           </p>
         </div>
       </main>
-
       <Footer />
     </div>
   );

@@ -124,7 +124,7 @@ function Home() {
                         <div className="text-2xl text-yellow-500 tracking-widest">
                           {renderEstrellas(review.calificacion)}
                         </div>
-                        <span className="text-m font-bold text-gray-400 mt-1 ml-auto">
+                        <span className="text-xs font-bold text-gray-400 mt-1 ml-auto">
                           {formatearFecha(review.fecha_creacion)}
                         </span>
                       </div>

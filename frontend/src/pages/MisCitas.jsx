@@ -10,24 +10,24 @@ function MisCitas() {
   const [loading, setLoading] = useState(true);
   const [citaACancelar, setCitaACancelar] = useState(null);
   const navigate = useNavigate();
-  const [citaAResenar, setCitaAResenar] = useState(null); // Objeto de la cita seleccionada
-  const [calificacion, setCalificacion] = useState(5);    // Por defecto 5 estrellas
-  const [comentario, setComentario] = useState('');      // Texto de la reseña
+  const [citaAResenar, setCitaAResenar] = useState(null); 
+  const [calificacion, setCalificacion] = useState(5);    
+  const [comentario, setComentario] = useState('');      
   const [modalExito, setModalExito] = useState(false);
   const [errorMensaje, setErrorMensaje] = useState(null);
 
   useEffect(() => {
     const cargarCitas = async () => {
       try {
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        // Usamos getSession para evitar bloqueos de red al recargar la página
+        const { data: { session }, error: authError } = await supabase.auth.getSession();
         
-        if (userError || !user) {
+        if (authError || !session) {
           navigate('/login');
           return;
         }
 
-        const response = await api.get(`/mis-citas/${user.id}`);
-        console.log("Citas recibidas del backend:", response.data);
+        const response = await api.get(`/mis-citas/${session.user.id}`);
         setCitas(response.data);
       } catch (error) {
         console.error("Error al traer las citas:", error);
@@ -39,7 +39,6 @@ function MisCitas() {
     cargarCitas();
   }, [navigate]);
 
-  // Función para darle un color diferente al estado de la cita
   const getEstiloEstado = (estado) => {
     switch(estado) {
       case 'CONFIRMADA': 
@@ -53,49 +52,53 @@ function MisCitas() {
     }
   };
 
-  // Función para poner la fecha bonita
   const formatearFecha = (fechaStr) => {
     const partes = fechaStr.split('-');
     return `${partes[2]}/${partes[1]}/${partes[0]}`;
   };
 
-  // Funciones para los botones de cancelar la cita
-  // Esta función solo abre el panel gigante guardando el ID
   const handleCancelar = (id_cita) => {
     setCitaACancelar(id_cita);
   };
 
-  // Esta función es la que se ejecuta al darle al botón "Aceptar" del panel
   const confirmarCancelacion = async () => {
     try {
       await api.put(`/cancelar-cita/${citaACancelar}`);
-      setCitaACancelar(null); // Cerramos el panel
-      cargarCitas(); // Recargamos la lista en silencio (mejor que recargar toda la página)
+      setCitaACancelar(null); 
+      
+      // Actualizamos el estado de la cita a CANCELADA en el frontend sin recargar la página entera
+      setCitas(citasActuales => 
+        citasActuales.map(cita => 
+          cita.id_cita === citaACancelar 
+            ? { ...cita, estado: 'CANCELADA' } 
+            : cita
+        )
+      );
     } catch (error) {
       alert("Hubo un error al cancelar la cita.");
     }
   };
   
-  // Esta función envía la reseña
   const enviarReview = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
       
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) return;
+
       await api.post('/nueva-review', {
-        id_usuario: user.id,
+        id_usuario: session.user.id,
         id_servicio: citaAResenar.id_servicio,
         id_cita: citaAResenar.id_cita,
         calificacion,
         comentario
       });
 
-      // Si todo va bien, limpiamos y abrimos el panel de éxito
       setCitaAResenar(null); 
       setComentario('');      
       setCalificacion(5);    
       setModalExito(true); 
 
-      // Actualizamos el estado local para ocultar el botón al instante sin recargar la página
       setCitas(citasActuales => 
         citasActuales.map(cita => 
           cita.id_cita === citaAResenar.id_cita 
@@ -106,15 +109,12 @@ function MisCitas() {
 
     } catch (error) {
       console.error(error);
-      // Capturamos el error real del backend o ponemos uno genérico
       const mensajeBackend = error.response?.data?.error || "Error de conexión al enviar la reseña.";
       setErrorMensaje(mensajeBackend);
     }
   };
 
-// Función para el botón de volver a reservar una cita
   const handleReservarDeNuevo = (id_servicio) => {
-    // Guardamos el servicio en memoria y lo mandamos al calendario
     localStorage.setItem('servicioSeleccionadoId', id_servicio);
     navigate('/dashboard');
   };    
@@ -137,7 +137,7 @@ function MisCitas() {
         </h2>
 
         {loading ? (
-          <div className="text-center font-bold text-xl py-10">Cargando tus citas...</div>
+          <div className="text-center font-bold text-xl py-10 uppercase tracking-widest text-[#8A2D3B]">Cargando tus citas...</div>
         ) : citas.length === 0 ? (
           <div className="bg-white border-4 border-texto-oscuro p-10 rounded-xl text-center shadow-[8px_8px_0px_0px_rgba(7,7,7,1)]">
             <p className="font-bold text-xl text-gray-500 mb-4">Aún no tienes ninguna cita registrada.</p>
@@ -179,7 +179,6 @@ function MisCitas() {
                 </div>
 
                 <div className="mt-6 pt-6 border-t-2 border-gray-100 flex gap-4">    
-                    {/* Solo mostramos el botón de cancelar si la cita está en estado CONFIRMADA */}
                     {cita.estado === 'CONFIRMADA' && (
                     <button 
                         onClick={() => handleCancelar(cita.id_cita)}
@@ -189,7 +188,6 @@ function MisCitas() {
                     </button>
                     )}
                     
-                    {/* BOTÓN DE RESEÑA: Solo para citas completadas y no reseñadas */}
                     {cita.estado === 'COMPLETADA' && !cita.resena_dejada && (
                       <button 
                         onClick={() => setCitaAResenar(cita)}
@@ -199,7 +197,6 @@ function MisCitas() {
                       </button>
                     )}
 
-                    {/* El botón de volver a reservar*/}
                     <button 
                     onClick={() => handleReservarDeNuevo(cita.id_servicio)}
                     className="flex-1 bg-texto-oscuro text-fondo-claro font-bold uppercase text-xs py-2 hover:bg-barber-azul transition"
@@ -216,8 +213,8 @@ function MisCitas() {
 
       {/* --- PANEL MODAL DE CANCELACIÓN --- */}
       {citaACancelar && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white border-4 border-texto-oscuro p-8 rounded-xl shadow-[12px_12px_0px_0px_rgba(7,7,7,1)] max-w-sm w-full animate-fade-in-up">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[1000] p-4">
+          <div className="bg-white border-4 border-texto-oscuro p-8 rounded-xl shadow-[12px_12px_0px_0px_rgba(7,7,7,1)] max-w-sm w-full">
             
             <h3 className="text-3xl font-black uppercase text-[#8A2D3B] mb-4 text-center">
               ¿Cancelar Cita?
@@ -245,9 +242,10 @@ function MisCitas() {
           </div>
         </div>
       )}
+
       {/* --- PANEL MODAL DE ENVIAR UNA RESEÑA --- */}
       {citaAResenar && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[1000] p-4">
           <div className="bg-white border-4 border-texto-oscuro p-8 rounded-xl shadow-[12px_12px_0px_0px_rgba(7,7,7,1)] max-w-lg w-full">
             
             <h3 className="text-2xl font-black uppercase text-texto-oscuro mb-2">
@@ -257,7 +255,6 @@ function MisCitas() {
               Tu opinión nos ayuda a mejorar
             </p>
             
-            {/* Selector de Estrellas */}
             <div className="flex justify-center gap-2 mb-6">
               {[1, 2, 3, 4, 5].map((num) => (
                 <button
@@ -299,9 +296,13 @@ function MisCitas() {
 
       {/* --- PANEL MODAL DE ÉXITO --- */}
         {modalExito && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[1000] p-4">
             <div className="bg-white border-4 border-texto-oscuro p-8 rounded-xl shadow-[12px_12px_0px_0px_rgba(7,7,7,1)] max-w-sm w-full text-center">
-              <div className="text-6xl mb-4">⭐</div>
+              <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-texto-oscuro">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                </svg>
+              </div>
               <h3 className="text-2xl font-black uppercase text-texto-oscuro mb-4">
                 ¡Reseña Enviada!
               </h3>
@@ -320,9 +321,13 @@ function MisCitas() {
 
         {/* --- PANEL MODAL DE ERROR --- */}
         {errorMensaje && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[1000] p-4">
             <div className="bg-white border-4 border-[#8A2D3B] p-8 rounded-xl shadow-[12px_12px_0px_0px_rgba(138,45,59,1)] max-w-sm w-full text-center">
-              <div className="text-6xl mb-4">⚠️</div>
+              <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-[#8A2D3B]">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-[#8A2D3B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
               <h3 className="text-2xl font-black uppercase text-[#8A2D3B] mb-4">
                 Algo salió mal
               </h3>
@@ -341,7 +346,6 @@ function MisCitas() {
 
       </main>
 
-  
       <Footer />
     </div>
   );

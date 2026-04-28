@@ -8,6 +8,8 @@ import Footer from '../components/Footer';
 function Dashboard() {
   const [servicioSeleccionado, setServicioSeleccionado] = useState(null);
   const [hora, setHora] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [cargandoReserva, setCargandoReserva] = useState(false);
   const navigate = useNavigate();
 
   const hoy = new Date();
@@ -17,8 +19,6 @@ function Dashboard() {
 
   const [mesVisible, setMesVisible] = useState(new Date(hoy.getFullYear(), hoy.getMonth(), 1));
   const [fechaSeleccionada, setFechaSeleccionada] = useState(null);
-  
-  // Estado para guardar las citas que ya están cogidas ese día
   const [horasOcupadas, setHorasOcupadas] = useState([]);
 
   useEffect(() => {
@@ -41,15 +41,12 @@ function Dashboard() {
     cargarServicioElegido();
   }, [navigate]);
 
-  // Cada vez que cambia el día seleccionado, preguntamos al Backend qué horas están pilladas
   useEffect(() => {
-    setHora(null); // Reseteamos la hora elegida
-    
+    setHora(null);
     if (!fechaSeleccionada) {
       setHorasOcupadas([]);
       return;
     }
-
     const traerHorasOcupadas = async () => {
       try {
         const response = await api.get(`/citas-ocupadas?fecha=${fechaSeleccionada}`);
@@ -58,7 +55,6 @@ function Dashboard() {
         console.error("Error al consultar disponibilidad:", error);
       }
     };
-
     traerHorasOcupadas();
   }, [fechaSeleccionada]);
 
@@ -72,7 +68,6 @@ function Dashboard() {
   const cambiarMes = (incremento) => setMesVisible(new Date(anioActual, mesActual + incremento, 1));
   const formatearFecha = (d, m, a) => `${a}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
   
-  // Función matemática para saber a qué hora termina el turno que estamos generando
   const calcularHoraFin = (inicio, duracion) => {
     const [horas, minutos] = inicio.split(':').map(Number);
     const totalMinutos = horas * 60 + minutos + duracion;
@@ -86,7 +81,6 @@ function Dashboard() {
     let horas = [];
     const duracion = servicioSeleccionado.duracion_minutos;
 
-    // 1. Generamos todas las horas
     for (let h = 9; h <= 13; h++) {
       horas.push(`${h < 10 ? '0'+h : h}:00`);
       horas.push(`${h < 10 ? '0'+h : h}:30`);
@@ -96,10 +90,8 @@ function Dashboard() {
       horas.push(`${h}:30`);
     }
 
-    // 2. Filtro de cierre (no salir más tarde de la hora de cierre)
     if (duracion === 60) horas = horas.filter(h => h !== '13:30' && h !== '19:30');
 
-    // 3. Filtro de horas pasadas (si es hoy)
     const fechaHoyStr = formatearFecha(new Date().getDate(), new Date().getMonth(), new Date().getFullYear());
     if (fechaSeleccionada === fechaHoyStr) {
       const ahora = new Date();
@@ -110,17 +102,12 @@ function Dashboard() {
       });
     }
 
-    // 4. Filtro de Overbooking (comparamos con la base de datos)
     horas = horas.filter(h => {
-      const inicio_db = `${h}:00`; // Convertimos "10:00" a "10:00:00"
+      const inicio_db = `${h}:00`;
       const fin_db = calcularHoraFin(h, duracion);
-
-      // Comprobamos si este turno choca con alguna cita ya guardada
       const choca = horasOcupadas.some(cita => {
         return (inicio_db < cita.hora_fin) && (fin_db > cita.hora_inicio);
       });
-
-      // Solo conservamos la hora si NO choca con nada
       return !choca;
     });
 
@@ -129,26 +116,39 @@ function Dashboard() {
 
   const horasDisponibles = obtenerHorasDisponibles();
 
-  const handleReserva = async () => {
+  const abrirConfirmacion = () => {
     if (!servicioSeleccionado || !fechaSeleccionada || !hora) {
-      alert("Por favor, selecciona fecha y hora.");
+      alert("Por favor, selecciona fecha y hora para continuar.");
       return;
     }
+    setShowModal(true);
+  };
+
+  const confirmarYEnviarReserva = async () => {
+    setCargandoReserva(true);
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) return alert("Inicia sesion de nuevo.");
+      if (userError || !user) {
+        alert("Sesion caducada. Inicia sesion de nuevo.");
+        return;
+      }
 
-      const response = await api.post('/nueva-cita', {
+      await api.post('/nueva-cita', {
         id_servicio: servicioSeleccionado.id_servicio,
         fecha: fechaSeleccionada,
         hora_inicio: hora,
         id_usuario: user.id
       });
 
-      alert(response.data.mensaje + "\nReserva confirmada.");
-      navigate('/'); 
+      setShowModal(false);
+      navigate('/mis-citas'); 
+
     } catch (error) {
-      if (error.response?.data?.error) alert("Error: " + error.response.data.error);
+      const mensaje = error.response?.data?.error || "No se pudo realizar la reserva.";
+      alert(mensaje);
+      setShowModal(false);
+    } finally {
+      setCargandoReserva(false);
     }
   };
 
@@ -157,12 +157,11 @@ function Dashboard() {
       <Navbar />
 
       <div className="max-w-4xl mx-auto p-8">
-        
         <button 
           onClick={() => navigate('/')} 
           className="mb-6 font-bold text-barber-azul hover:text-texto-oscuro transition flex items-center gap-2 uppercase tracking-widest text-sm"
         >
-          &lt; Volver a Servicios
+          Volver a Servicios
         </button>
 
         {servicioSeleccionado && (
@@ -172,13 +171,12 @@ function Dashboard() {
               <span className="text-2xl font-black uppercase">{servicioSeleccionado.nombre}</span>
             </div>
             <div className="text-center md:text-right mt-4 md:mt-0">
-              <span className="text-4xl font-black block">{servicioSeleccionado.precio} €</span>
+              <span className="text-4xl font-black block">{servicioSeleccionado.precio} EUR</span>
             </div>
           </div>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Calendario */}
           <div className="bg-white border-4 border-texto-oscuro p-6 rounded-xl shadow-[6px_6px_0px_0px_rgba(7,7,7,1)]">
             <div className="flex justify-between items-center mb-6">
               <label className="block text-sm font-black uppercase tracking-widest text-texto-oscuro">Dia</label>
@@ -205,7 +203,6 @@ function Dashboard() {
                     className={`aspect-square rounded font-bold transition flex items-center justify-center border-2
                       ${deshabilitado ? 'text-gray-400 border-gray-100 cursor-not-allowed bg-gray-50' : 'border-transparent hover:border-barber-azul cursor-pointer text-texto-oscuro'} 
                       ${estaSeleccionado ? 'bg-barber-azul text-fondo-claro border-barber-azul shadow-md' : ''}
-                      ${fechaCasilla.getDay() === 0 || fechaCasilla.getDay() === 6 ? 'line-through decoration-gray-400' : ''}
                     `}
                   >
                     {dia}
@@ -215,11 +212,10 @@ function Dashboard() {
             </div>
           </div>
 
-          {/* Horas */}
           <div className="bg-white border-4 border-texto-oscuro p-6 rounded-xl shadow-[6px_6px_0px_0px_rgba(7,7,7,1)] flex flex-col">
             <label className="block text-sm font-black uppercase tracking-widest text-texto-oscuro mb-6">Hora</label>
             {!fechaSeleccionada ? (
-              <div className="text-sm font-bold text-barber-rojo bg-red-50 p-4 rounded border-2 border-barber-rojo flex-1 flex items-center justify-center text-center">
+              <div className="text-sm font-bold text-[#8A2D3B] bg-red-50 p-4 rounded border-2 border-[#8A2D3B] flex-1 flex items-center justify-center text-center">
                 SELECCIONA UN DIA PRIMERO
               </div>
             ) : horasDisponibles.length === 0 ? (
@@ -243,16 +239,68 @@ function Dashboard() {
 
             <div className="mt-8 pt-6 border-t-4 border-gray-100">
               <button 
-                onClick={handleReserva}
-                className="w-full bg-[#8A2D3B] text-fondo-claro font-black uppercase tracking-widest text-xl py-4 rounded hover:bg-red-800 transition"
+                onClick={abrirConfirmacion}
+                className="w-full bg-[#8A2D3B] text-fondo-claro font-black uppercase tracking-widest text-xl py-4 rounded hover:bg-red-800 transition shadow-[4px_4px_0px_0px_rgba(7,7,7,1)]"
               >
-                Confirmar
+                Reservar Cita
               </button>
             </div>
           </div>
         </div>
       </div>
       <Footer />
+
+      {/* Modal de Confirmar Reserva */}
+      {showModal && (
+        <div className="fixed inset-0 backdrop-blur-md bg-white/10 flex items-center justify-center z-[1000] p-4">
+          <div className="bg-white border-4 border-texto-oscuro rounded-xl shadow-[10px_10px_0px_0px_rgba(7,7,7,1)] w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            
+            <div className="bg-[#8A2D3B] p-6 text-center border-b-4 border-texto-oscuro">
+              <h3 className="text-white text-2xl font-black uppercase tracking-widest">Confirmar Reserva</h3>
+            </div>
+
+            <div className="p-8 space-y-4 bg-white">
+              <div className="flex justify-between border-b-2 border-gray-100 pb-2">
+                <span className="text-xs font-black uppercase text-gray-400 tracking-tighter">Servicio</span>
+                <span className="font-bold text-[#070707]">{servicioSeleccionado?.nombre}</span>
+              </div>
+              <div className="flex justify-between border-b-2 border-gray-100 pb-2">
+                <span className="text-xs font-black uppercase text-gray-400 tracking-tighter">Fecha</span>
+                <span className="font-bold text-[#070707]">{fechaSeleccionada}</span>
+              </div>
+              <div className="flex justify-between border-b-2 border-gray-100 pb-2">
+                <span className="text-xs font-black uppercase text-gray-400 tracking-tighter">Hora</span>
+                <span className="font-bold text-[#070707]">{hora}</span>
+              </div>
+              <div className="flex justify-between border-b-2 border-gray-100 pb-2">
+                <span className="text-xs font-black uppercase text-gray-400 tracking-tighter">Duracion</span>
+                <span className="font-bold text-[#070707]">{servicioSeleccionado?.duracion_minutos} min</span>
+              </div>
+              <div className="flex justify-between pt-2">
+                <span className="text-xs font-black uppercase text-gray-400 tracking-tighter">Precio Final</span>
+                <span className="text-2xl font-black text-[#8A2D3B]">{servicioSeleccionado?.precio} EUR</span>
+              </div>
+
+              <div className="flex gap-4 mt-8">
+                <button 
+                  onClick={() => setShowModal(false)}
+                  disabled={cargandoReserva}
+                  className="flex-1 bg-gray-200 text-[#070707] font-black uppercase tracking-widest py-4 rounded border-2 border-texto-oscuro hover:bg-gray-300 transition"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={confirmarYEnviarReserva}
+                  disabled={cargandoReserva}
+                  className="flex-1 bg-[#8A2D3B] text-white font-black uppercase tracking-widest py-4 rounded border-2 border-texto-oscuro hover:bg-red-800 transition flex items-center justify-center"
+                >
+                  {cargandoReserva ? "Enviando..." : "Aceptar"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
