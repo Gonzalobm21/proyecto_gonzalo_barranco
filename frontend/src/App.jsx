@@ -15,11 +15,6 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Si pasa 3 segundo y Supabase no responde, forzamos el desbloqueo
-    const seguro = setTimeout(() => {
-      setLoading(false);
-    }, 3000);
-
     const iniciarAplicacion = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -37,7 +32,6 @@ function App() {
       } catch (error) {
         console.error("Fallo al contactar con Supabase:", error);
       } finally {
-        clearTimeout(seguro); // Todo fue bien, cancelamos el temporizador
         setLoading(false); // Quitamos la pantalla de carga
       }
     };
@@ -45,24 +39,28 @@ function App() {
     iniciarAplicacion();
 
     // Radar en segundo plano para cambios de cuenta
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
-      setSession(currentSession);
+const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+  setSession(currentSession);
+  
+  // Si el evento es explícitamente cerrar sesión, limpiamos todo
+  if (event === 'SIGNED_OUT') {
+    setUserRole(null);
+  } 
+  // Si hay sesión activa (login o refresco), pedimos el rol a la base de datos
+  else if (currentSession) {
+    const { data } = await supabase
+      .from('usuario')
+      .select('rol')
+      .eq('id_usuario', currentSession.user.id)
+      .maybeSingle();
       
-      if (currentSession) {
-      // Solo buscamos el rol si no lo tenemos ya, para evitar saltos
-      const { data } = await supabase
-        .from('usuario')
-        .select('rol')
-        .eq('id_usuario', currentSession.user.id)
-        .maybeSingle();
-      if (data) setUserRole(data.rol);
-      } else {
-        setUserRole(null);
-      }
-    });
+    if (data) setUserRole(data.rol);
+  } else {
+    setUserRole(null);
+  }
+});
 
     return () => {
-      clearTimeout(seguro);
       subscription.unsubscribe();
     };
   }, []);
