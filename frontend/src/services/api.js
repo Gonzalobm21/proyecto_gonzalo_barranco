@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Creamos una instancia de axios configurada
 const api = axios.create({
-    baseURL: 'http://localhost:3000', // La URL de tu backend de Express
+    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000', // La URL de tu backend de Express
 });
 
 // Este interceptor añadirá el Token automáticamente en cada petición
