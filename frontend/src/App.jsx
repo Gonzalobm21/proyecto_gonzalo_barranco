@@ -45,8 +45,21 @@ function App() {
     iniciarAplicacion();
 
     // Radar en segundo plano para cambios de cuenta
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, currentSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
       setSession(currentSession);
+      
+      // Si acabamos de iniciar sesión, pedimos el rol. Si hemos cerrado, lo borramos.
+      if (currentSession) {
+        const { data } = await supabase
+          .from('usuario')
+          .select('rol')
+          .eq('id_usuario', currentSession.user.id)
+          .maybeSingle();
+          
+        if (data) setUserRole(data.rol);
+      } else {
+        setUserRole(null);
+      }
     });
 
     return () => {
