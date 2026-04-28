@@ -15,10 +15,10 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Si pasa 1 segundo y Supabase no responde, forzamos el desbloqueo
+    // Si pasa 3 segundo y Supabase no responde, forzamos el desbloqueo
     const seguro = setTimeout(() => {
       setLoading(false);
-    }, 1000);
+    }, 3000);
 
     const iniciarAplicacion = async () => {
       try {
@@ -48,15 +48,14 @@ function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
       setSession(currentSession);
       
-      // Si acabamos de iniciar sesión, pedimos el rol. Si hemos cerrado, lo borramos.
       if (currentSession) {
-        const { data } = await supabase
-          .from('usuario')
-          .select('rol')
-          .eq('id_usuario', currentSession.user.id)
-          .maybeSingle();
-          
-        if (data) setUserRole(data.rol);
+      // Solo buscamos el rol si no lo tenemos ya, para evitar saltos
+      const { data } = await supabase
+        .from('usuario')
+        .select('rol')
+        .eq('id_usuario', currentSession.user.id)
+        .maybeSingle();
+      if (data) setUserRole(data.rol);
       } else {
         setUserRole(null);
       }
