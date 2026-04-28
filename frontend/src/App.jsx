@@ -14,7 +14,7 @@ function App() {
   const [userRole, setUserRole] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+useEffect(() => {
     // Chivato de seguridad para comprobar que Render tiene bien tus variables
     console.log("1. Arrancando App. URL Supabase:", import.meta.env.VITE_SUPABASE_URL ? "DETECTADA" : "¡FALTA!");
 
@@ -58,35 +58,6 @@ function App() {
     });
 
     // Limpieza al desmontar
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-
-    iniciarAplicacion();
-
-    // Radar en segundo plano para cambios de cuenta
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-  setSession(currentSession);
-  
-  // Si el evento es explícitamente cerrar sesión, limpiamos todo
-  if (event === 'SIGNED_OUT') {
-    setUserRole(null);
-  } 
-  // Si hay sesión activa (login o refresco), pedimos el rol a la base de datos
-  else if (currentSession) {
-    const { data } = await supabase
-      .from('usuario')
-      .select('rol')
-      .eq('id_usuario', currentSession.user.id)
-      .maybeSingle();
-      
-    if (data) setUserRole(data.rol);
-  } else {
-    setUserRole(null);
-  }
-});
-
     return () => {
       subscription.unsubscribe();
     };
