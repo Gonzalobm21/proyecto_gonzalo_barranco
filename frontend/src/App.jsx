@@ -15,41 +15,53 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const iniciarAplicacion = async () => {
-      try {
-        console.log("Paso 1: Voy a pedir la sesión a Supabase...");
-        const { data: { session }, error } = await supabase.auth.getUser();
-        console.log("Paso 2: Sesión recibida. Error:", error);
-        //  Si Supabase nos dice que el token es inválido o hay error
-        if (error) {
-          console.warn("Se detectó un token corrupto. Limpiando sesión...");
-          await supabase.auth.signOut(); // Obligamos al navegador a borrar la basura
-          setSession(null);
-          setUserRole(null);
-          return; // Cortamos la ejecución aquí, no intentamos buscar el rol
-        }
+    // Chivato de seguridad para comprobar que Render tiene bien tus variables
+    console.log("1. Arrancando App. URL Supabase:", import.meta.env.VITE_SUPABASE_URL ? "DETECTADA" : "¡FALTA!");
 
-        // Si la sesión es válida y está limpia, buscamos su rol
-        if (session) {
-          console.log("Paso 3: Hay sesión. Voy a pedir el rol a la base de datos...");
+    // El Radar ahora es el único jefe. Hace la carga inicial y vigila los cambios.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      console.log("2. Radar disparado. Evento:", event);
+      
+      setSession(currentSession);
+
+      // Si cerramos sesión explícitamente
+      if (event === 'SIGNED_OUT') {
+        setUserRole(null);
+        setLoading(false);
+      } 
+      // Si hay sesión (ya sea inicial o un nuevo login)
+      else if (currentSession) {
+        try {
+          console.log("3. Buscando rol en la base de datos...");
           const { data } = await supabase
             .from('usuario')
             .select('rol')
-            .eq('id_usuario', user.id)
+            .eq('id_usuario', currentSession.user.id)
             .maybeSingle();
-          console.log("Paso 4: Rol recibido:", data);
-          if (data) setUserRole(data.rol);
+            
+          if (data) {
+            console.log("4. Rol encontrado:", data.rol);
+            setUserRole(data.rol);
+          }
+        } catch (error) {
+          console.error("Fallo al buscar rol:", error);
+        } finally {
+          setLoading(false); // Levantamos el telón
         }
-      } catch (err) {
-        console.error("¡BUM! Ha saltado un error crítico:", err);
-        // Seguro de vida por si el servidor se cae por completo
-        setSession(null); 
+      } 
+      // Si entra a la web y no tiene cuenta iniciada
+      else {
+        console.log("3. No hay sesión activa. Modo invitado.");
         setUserRole(null);
-      } finally {
-        console.log("Paso 5: He llegado al finally. Voy a quitar el Loading.");
-        setLoading(false); // quitamos la pantalla de carga
+        setLoading(false); // Levantamos el telón
       }
+    });
+
+    // Limpieza al desmontar
+    return () => {
+      subscription.unsubscribe();
     };
+  }, []);
 
     iniciarAplicacion();
 
