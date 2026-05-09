@@ -33,20 +33,25 @@ useEffect(() => {
       else if (currentSession) {
         try {
           console.log("3. Buscando rol en la base de datos...");
-          const { data } = await supabase
+          const { data, error } = await supabase
             .from('usuario')
             .select('rol')
             .eq('id_usuario', currentSession.user.id)
             .maybeSingle();
             
+          console.log("-> Respuesta cruda de Supabase:", { data, error });
+
           if (data) {
             console.log("4. Rol encontrado:", data.rol);
             setUserRole(data.rol);
+          } else {
+            console.warn("4. ¡ALERTA! Supabase ha devuelto vacío. El RLS está bloqueando la lectura.");
           }
         } catch (error) {
           console.error("Fallo al buscar rol:", error);
         } finally {
-          setLoading(false); // Levantamos el telón
+          console.log("5. Levantando el telón de carga.");
+          setLoading(false); 
         }
       } 
       // Si entra a la web y no tiene cuenta iniciada
