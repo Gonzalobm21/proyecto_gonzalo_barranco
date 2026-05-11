@@ -322,6 +322,7 @@ function AdminPanel() {
                   const fechaObj = new Date(anioActual, mesActual, d);
                   fechaObj.setHours(0,0,0,0);
                   const esPasado = fechaObj < hoy;
+                  const esFinDeSemana = fechaObj.getDay() === 0 || fechaObj.getDay() === 6;
                   
                   // Lógica visual dependiendo del modo
                   const seleccionado = modoBloqueo === 'dias' ? diasSeleccionados.includes(fStr) : false;
@@ -329,7 +330,7 @@ function AdminPanel() {
                   return (
                     <button 
                       key={d}
-                      disabled={esPasado}
+                      disabled={esPasado || esFinDeSemana}
                       onClick={() => {
                         if (modoBloqueo === 'dias') {
                           setDiasSeleccionados(prev => prev.includes(fStr) ? prev.filter(dia => dia !== fStr) : [...prev, fStr]);
@@ -339,7 +340,7 @@ function AdminPanel() {
                         }
                       }}
                       className={`aspect-square text-sm font-bold rounded-md transition ${
-                        esPasado ? 'text-gray-200 cursor-not-allowed' : 
+                        (esPasado || esFinDeSemana) ? 'text-gray-200 cursor-not-allowed bg-gray-50/50' :
                         seleccionado ? 'bg-[#8A2D3B] text-white shadow-md' : 
                         'hover:bg-gray-200 text-[#070707] border border-transparent hover:border-gray-300'
                       }`}
@@ -446,15 +447,17 @@ function AdminPanel() {
                   fechaCasilla.setHours(0, 0, 0, 0);
                   const fechaStr = formatearFecha(dia, mesActual, anioActual);
                   const esPasado = fechaCasilla < hoy;
+                  const esFinDeSemana = fechaCasilla.getDay() === 0 || fechaCasilla.getDay() === 6;
                   const esHoy = fechaCasilla.getTime() === hoy.getTime();
                   const estaSeleccionado = filtroFecha === fechaStr;
 
                   return (
                     <button 
-                      key={dia} disabled={esPasado}
+                      key={dia} 
+                      disabled={esPasado || esFinDeSemana}
                       onClick={() => { setFiltroFecha(fechaStr); setModalCalendarioAbierto(false); }}
                       className={`aspect-square rounded font-bold transition flex items-center justify-center border-2
-                        ${esPasado && !estaSeleccionado ? 'text-gray-400 bg-gray-50 border-gray-100 hover:border-gray-300' : 'text-[#070707] border-transparent hover:border-[#8A2D3B]'}
+                        ${(esPasado || esFinDeSemana) && !estaSeleccionado ? 'text-gray-400 bg-gray-50 border-gray-100 hover:border-gray-300' : 'text-[#070707] border-transparent hover:border-[#8A2D3B]'}
                         ${esHoy && !estaSeleccionado ? 'border-[#070707]' : ''}
                         ${estaSeleccionado ? 'bg-[#8A2D3B] text-[#F7F7FF] border-[#8A2D3B] shadow-md' : ''}
                       `}
