@@ -95,13 +95,22 @@ function AdminPanel() {
     setHistorialCitas([]);
   };
 
-  /* LÓGICA MATEMÁTICA PARA LAS HORAS (NUEVO) */
+  /* LÓGICA MATEMÁTICA PARA LAS HORAS */
   const generarHoras = () => {
     const horas = [];
-    for (let h = 9; h <= 20; h++) {
+    
+    // Turno de mañana: de 09:00 a 13:30 (porque la de las 13:30 termina a las 14:00)
+    for (let h = 9; h <= 13; h++) {
       horas.push(`${String(h).padStart(2, '0')}:00`);
-      if (h !== 20) horas.push(`${String(h).padStart(2, '0')}:30`);
+      horas.push(`${String(h).padStart(2, '0')}:30`);
     }
+    
+    // Turno de tarde: de 17:00 a 19:30 (porque la de las 19:30 termina a las 20:00)
+    for (let h = 17; h <= 19; h++) {
+      horas.push(`${String(h).padStart(2, '0')}:00`);
+      horas.push(`${String(h).padStart(2, '0')}:30`);
+    }
+    
     return horas;
   };
 
