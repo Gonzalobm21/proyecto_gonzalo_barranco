@@ -255,29 +255,58 @@ function AdminPanel() {
             </ul>
           </div>
         </div>
-
-        {/* Tarjeta de Bloqueo de Horarios (Nueva) */}
+        {/* Tarjeta de Bloqueo de Horarios */}
         <div className="bg-white p-6 shadow-md border-t-4 border-gray-400 md:col-span-2">
-          <h2 className="text-2xl font-bold mb-4">Bloquear Horario en Agenda</h2>
+          <h2 className="text-2xl font-bold mb-4 uppercase tracking-tight text-[#070707]">
+            Bloquear Horario en Agenda
+          </h2>
           <form onSubmit={manejarBloqueo} className="flex flex-col md:flex-row gap-4 items-end">
             <div className="flex-1 w-full">
-              <label className="block text-sm text-gray-600 font-bold mb-1 uppercase tracking-wider">Fecha</label>
-              <input type="date" required value={fechaBloqueo} onChange={(e) => setFechaBloqueo(e.target.value)} className="w-full p-3 border border-gray-300 rounded focus:border-[#8A2D3B] focus:outline-none" />
+              <label className="block text-xs font-black text-gray-400 mb-1 uppercase tracking-tighter">Fecha</label>
+              <input 
+                type="date" 
+                required 
+                value={fechaBloqueo} 
+                onChange={(e) => setFechaBloqueo(e.target.value)} 
+                className="w-full p-3 border-2 border-gray-100 rounded font-bold focus:border-[#8A2D3B] focus:outline-none transition" 
+              />
             </div>
             <div className="flex-1 w-full">
-              <label className="block text-sm text-gray-600 font-bold mb-1 uppercase tracking-wider">Hora Inicio</label>
-              <input type="time" required value={horaInicioBloqueo} onChange={(e) => setHoraInicioBloqueo(e.target.value)} className="w-full p-3 border border-gray-300 rounded focus:border-[#8A2D3B] focus:outline-none" />
+              <label className="block text-xs font-black text-gray-400 mb-1 uppercase tracking-tighter">Inicio</label>
+              <input 
+                type="time" 
+                required 
+                value={horaInicioBloqueo} 
+                onChange={(e) => setHoraInicioBloqueo(e.target.value)} 
+                className="w-full p-3 border-2 border-gray-100 rounded font-bold focus:border-[#8A2D3B] focus:outline-none transition" 
+              />
             </div>
             <div className="flex-1 w-full">
-              <label className="block text-sm text-gray-600 font-bold mb-1 uppercase tracking-wider">Hora Fin</label>
-              <input type="time" required value={horaFinBloqueo} onChange={(e) => setHoraFinBloqueo(e.target.value)} className="w-full p-3 border border-gray-300 rounded focus:border-[#8A2D3B] focus:outline-none" />
+              <label className="block text-xs font-black text-gray-400 mb-1 uppercase tracking-tighter">Fin</label>
+              <input 
+                type="time" 
+                required 
+                value={horaFinBloqueo} 
+                onChange={(e) => setHoraFinBloqueo(e.target.value)} 
+                className="w-full p-3 border-2 border-gray-100 rounded font-bold focus:border-[#8A2D3B] focus:outline-none transition" 
+              />
             </div>
             <div className="flex-1 w-full">
-              <label className="block text-sm text-gray-600 font-bold mb-1 uppercase tracking-wider">Motivo (Opcional)</label>
-              <input type="text" placeholder="Ej: Médico, Vacaciones..." value={motivoBloqueo} onChange={(e) => setMotivoBloqueo(e.target.value)} className="w-full p-3 border border-gray-300 rounded focus:border-[#8A2D3B] focus:outline-none" />
+              <label className="block text-xs font-black text-gray-400 mb-1 uppercase tracking-tighter">Motivo</label>
+              <input 
+                type="text" 
+                placeholder="Ej: Médico, Vacaciones..." 
+                value={motivoBloqueo} 
+                onChange={(e) => setMotivoBloqueo(e.target.value)} 
+                className="w-full p-3 border-2 border-gray-100 rounded font-bold focus:border-[#8A2D3B] focus:outline-none transition" 
+              />
             </div>
-            <button type="submit" disabled={cargandoBloqueo} className="bg-[#070707] text-white font-bold uppercase tracking-widest py-3 px-6 rounded hover:bg-[#8A2D3B] transition h-[50px] whitespace-nowrap">
-              {cargandoBloqueo ? 'Guardando...' : 'Bloquear'}
+            <button 
+              type="submit" 
+              disabled={cargandoBloqueo} 
+              className="bg-[#070707] text-white font-black uppercase tracking-widest py-4 px-8 rounded border-2 border-[#070707] hover:bg-[#8A2D3B] hover:border-[#8A2D3B] transition disabled:opacity-50 h-[52px]"
+            >
+              {cargandoBloqueo ? '...' : 'Bloquear'}
             </button>
           </form>
         </div>
