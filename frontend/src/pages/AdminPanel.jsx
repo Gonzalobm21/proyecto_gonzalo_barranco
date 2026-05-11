@@ -12,15 +12,16 @@ function AdminPanel() {
   const [cargandoHistorial, setCargandoHistorial] = useState(false); 
   
   // Estados para bloqueos de agenda
-  const [fechaBloqueo, setFechaBloqueo] = useState('');
-  const [horaInicioBloqueo, setHoraInicioBloqueo] = useState('');
-  const [horaFinBloqueo, setHoraFinBloqueo] = useState('');
+  const [modoBloqueo, setModoBloqueo] = useState('horas'); // 'horas' o 'dias'
+  const [diasSeleccionados, setDiasSeleccionados] = useState([]); 
   const [motivoBloqueo, setMotivoBloqueo] = useState('');
   const [cargandoBloqueo, setCargandoBloqueo] = useState(false);
-  const [modoBloqueo, setModoBloqueo] = useState('horas'); // 'horas' o 'dias'
-  const [diasSeleccionados, setDiasSeleccionados] = useState([]); // Array de strings 'YYYY-MM-DD'
+  
+  // Estados para el Modal de Horas
+  const [diaHorasSeleccionado, setDiaHorasSeleccionado] = useState(null); // 'YYYY-MM-DD'
+  const [rangoHoras, setRangoHoras] = useState([]); // Guarda 1 o 2 horas clickeadas
 
-  // Lógica del calendarrio
+  // Lógica del calendario principal
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
 
@@ -46,71 +47,37 @@ function AdminPanel() {
     const cargarDatos = async () => {
       try {
         setCargando(true);
-
-        // Clientes: SOLO los que tengan rol 'cliente'
-        const { data: dataClientes, error: errClientes } = await supabase
-          .from('usuario')
-          .select('*')
-          .eq('rol', 'cliente'); 
-          
+        const { data: dataClientes, error: errClientes } = await supabase.from('usuario').select('*').eq('rol', 'cliente'); 
         if (errClientes) throw errClientes;
         setClientes(dataClientes || []);
 
-        // Citas: SOLO las que tengan estado 'CONFIRMADA' con usuario y servicio
         const { data: dataCitas, error: errCitas } = await supabase
           .from('cita')
-          .select(`
-            id_cita,
-            fecha,
-            hora_inicio,
-            estado,
-            usuario!inner (
-              nombre,
-              rol
-            ),
-            servicio (
-              nombre,
-              precio,
-              duracion_minutos
-            )
-          `)
+          .select('id_cita, fecha, hora_inicio, estado, usuario!inner (nombre, rol), servicio (nombre, precio, duracion_minutos)')
           .eq('estado', 'CONFIRMADA')
           .eq('usuario.rol', 'cliente')
           .order('fecha', { ascending: true });
           
         if (errCitas) throw errCitas;
         setCitas(dataCitas || []);
-
       } catch (error) {
         console.error("Error cargando panel:", error.message);
       } finally {
         setCargando(false);
       }
     };
-
     cargarDatos();
   }, []);
 
-  // Lógica del buscador 
-  const clientesFiltrados = clientes.filter(cliente => 
-    cliente.nombre?.toLowerCase().includes(busqueda.toLowerCase())
-  );
+  const clientesFiltrados = clientes.filter(cliente => cliente.nombre?.toLowerCase().includes(busqueda.toLowerCase()));
 
-  // Función que se ejecuta al hacer clic en un cliente
   const verDetallesCliente = async (cliente) => {
     setClienteSeleccionado(cliente);
     setCargandoHistorial(true);
-    
     try {
       const { data, error } = await supabase
         .from('cita')
-        .select(`
-          id_cita,
-          fecha,
-          hora_inicio,
-          estado,
-          servicio ( nombre, precio, duracion_minutos ) 
-        `)
+        .select('id_cita, fecha, hora_inicio, estado, servicio ( nombre, precio, duracion_minutos )')
         .eq('id_usuario', cliente.id_usuario)
         .order('fecha', { ascending: false });
 
@@ -123,68 +90,114 @@ function AdminPanel() {
     }
   };
 
-  // Función para cerrar la tarjeta del cliente
   const cerrarModal = () => {
     setClienteSeleccionado(null);
     setHistorialCitas([]);
   };
 
-  // Función para guardar un bloqueo de horario
-  const manejarBloqueo = async (e) => {
-    e.preventDefault();
-    setCargandoBloqueo(true);
+  /* LÓGICA MATEMÁTICA PARA LAS HORAS (NUEVO) */
+  const generarHoras = () => {
+    const horas = [];
+    for (let h = 9; h <= 20; h++) {
+      horas.push(`${String(h).padStart(2, '0')}:00`);
+      if (h !== 20) horas.push(`${String(h).padStart(2, '0')}:30`);
+    }
+    return horas;
+  };
+
+  const timeToMins = (t) => {
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + m;
+  };
+
+  const minsToTime = (m) => {
+    const h = Math.floor(m / 60);
+    const mins = m % 60;
+    return `${String(h).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+  };
+
+  // Variables para saber qué horas pintamos de rojo y cuáles se envían a la BD
+  let horaInicioCalculada = null;
+  let horaFinCalculada = null;
+  let minsInicio = 0;
+  let minsFin = 0;
+
+  if (rangoHoras.length > 0) {
+    const t1 = timeToMins(rangoHoras[0]);
+    // Si solo hay un click, inicio y fin son el mismo botón
+    const t2 = rangoHoras.length === 2 ? timeToMins(rangoHoras[1]) : t1; 
     
+    minsInicio = Math.min(t1, t2); // Automáticamente sabe cuál es menor
+    minsFin = Math.max(t1, t2);    // Automáticamente sabe cuál es mayor
+    
+    horaInicioCalculada = minsToTime(minsInicio);
+    // Le sumamos 30 minutos al botón final para que englobe la cita entera
+    horaFinCalculada = minsToTime(minsFin + 30); 
+  }
+
+  const isSelected = (hora) => {
+    if (rangoHoras.length === 0) return false;
+    const t = timeToMins(hora);
+    return t >= minsInicio && t <= minsFin;
+  };
+
+  const handleSlotClick = (hora) => {
+    if (rangoHoras.length === 2) {
+      setRangoHoras([hora]); // Si ya había dos, empezamos de cero con el nuevo click
+    } else {
+      setRangoHoras([...rangoHoras, hora]);
+    }
+  };
+
+  /* FUNCIONES DE GUARDADO EN SUPABASE */
+  const manejarBloqueoDias = async () => {
+    if (diasSeleccionados.length === 0) return;
+    setCargandoBloqueo(true);
     try {
-      let datosAInsertar = [];
-
-      if (modoBloqueo === 'horas') {
-        datosAInsertar = [{
-          fecha: fechaBloqueo,
-          hora_inicio: horaInicioBloqueo,
-          hora_fin: horaFinBloqueo,
-          motivo: motivoBloqueo
-        }];
-      } else {
-        if (diasSeleccionados.length === 0) throw new Error("Selecciona al menos un día");
-        
-        datosAInsertar = diasSeleccionados.map(fechaStr => ({
-          fecha: fechaStr,
-          hora_inicio: '00:00',
-          hora_fin: '23:59',
-          motivo: motivoBloqueo || 'Vacaciones/Cierre'
-        }));
-      }
-
-      const { error } = await supabase.from('bloqueo_agenda').insert(datosAInsertar);
+      const datos = diasSeleccionados.map(fStr => ({
+        fecha: fStr,
+        hora_inicio: '00:00',
+        hora_fin: '23:59',
+        motivo: motivoBloqueo || 'Vacaciones/Cierre'
+      }));
+      const { error } = await supabase.from('bloqueo_agenda').insert(datos);
       if (error) throw error;
-      
-      alert(modoBloqueo === 'horas' ? "Horario bloqueado" : "Días bloqueados con éxito");
-      
-      // Limpieza
-      setFechaBloqueo(''); setHoraInicioBloqueo(''); setHoraFinBloqueo('');
-      setMotivoBloqueo(''); setDiasSeleccionados([]);
-    } catch (error) {
-      alert(error.message);
+      alert("Días bloqueados con éxito");
+      setDiasSeleccionados([]);
+      setMotivoBloqueo('');
+    } catch (err) {
+      alert(err.message);
     } finally {
       setCargandoBloqueo(false);
     }
   };
 
-  // Función auxiliar para añadir/quitar días del array al clickar
-  const toggleDia = (fechaStr) => {
-    setDiasSeleccionados(prev => 
-      prev.includes(fechaStr) ? prev.filter(d => d !== fechaStr) : [...prev, fechaStr]
-    );
+  const manejarBloqueoHoras = async () => {
+    if (rangoHoras.length === 0) return alert("Selecciona al menos una hora.");
+    setCargandoBloqueo(true);
+    try {
+      const { error } = await supabase.from('bloqueo_agenda').insert([{
+        fecha: diaHorasSeleccionado,
+        hora_inicio: horaInicioCalculada,
+        hora_fin: horaFinCalculada,
+        motivo: motivoBloqueo || 'Cierre de horas'
+      }]);
+      if (error) throw error;
+      alert("Horario bloqueado con éxito");
+      setDiaHorasSeleccionado(null);
+      setRangoHoras([]);
+      setMotivoBloqueo('');
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setCargandoBloqueo(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-[#F7F7FF] p-8 text-[#070707]">
-      {/* Boton de volver */}
       <div className="mb-6">
-        <Link 
-          to="/" 
-          className="text-[#8A2D3B] font-bold uppercase text-sm hover:text-[#070707] transition flex items-center gap-2 w-fit"
-        >
+        <Link to="/" className="text-[#8A2D3B] font-bold uppercase text-sm hover:text-[#070707] transition flex items-center gap-2 w-fit">
           Volver al Inicio
         </Link>
       </div>
@@ -201,18 +214,11 @@ function AdminPanel() {
             <h2 className="text-2xl font-bold">Proximas Citas ({citasFiltradas.length})</h2>
             <div className="flex items-center gap-3">
               {filtroFecha && (
-                <button 
-                  onClick={() => setFiltroFecha(null)} 
-                  className="text-xs text-[#8A2D3B] font-bold uppercase hover:underline"
-                >
+                <button onClick={() => setFiltroFecha(null)} className="text-xs text-[#8A2D3B] font-bold uppercase hover:underline">
                   Ver todas
                 </button>
               )}
-              <button 
-                onClick={() => setModalCalendarioAbierto(true)} 
-                className="text-gray-400 hover:text-[#070707] transition"
-                title="Filtrar por dia"
-              >
+              <button onClick={() => setModalCalendarioAbierto(true)} className="text-gray-400 hover:text-[#070707] transition">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
@@ -230,12 +236,8 @@ function AdminPanel() {
                 {citasFiltradas.map((cita) => (
                   <li key={cita.id_cita} className="py-3">
                     <div>
-                      <p className="font-bold text-[#070707] uppercase text-sm">
-                        {cita.usuario?.nombre || 'Cliente desconocido'}
-                      </p>
-                      <p className="text-[#8A2D3B] font-medium">
-                        {cita.fecha} - {cita.hora_inicio}
-                      </p>
+                      <p className="font-bold text-[#070707] uppercase text-sm">{cita.usuario?.nombre || 'Cliente desconocido'}</p>
+                      <p className="text-[#8A2D3B] font-medium">{cita.fecha} - {cita.hora_inicio}</p>
                       <p className="text-xs text-gray-500">Estado: {cita.estado}</p>
                     </div>
                   </li>
@@ -248,7 +250,6 @@ function AdminPanel() {
         {/* Tarjeta de Gestion de Clientes */}
         <div className="bg-white p-6 shadow-md border-t-4 border-[#070707]">
           <h2 className="text-2xl font-bold mb-4">Clientes Registrados</h2>
-          
           <input 
             type="text" 
             placeholder="Buscar cliente por nombre..." 
@@ -256,15 +257,11 @@ function AdminPanel() {
             onChange={(e) => setBusqueda(e.target.value)}
             className="w-full p-2 mb-4 border border-gray-300 rounded focus:outline-none focus:border-[#8A2D3B]"
           />
-          
           <div className="max-h-64 overflow-y-auto pr-2">
             <ul className="divide-y divide-gray-200">
               {clientesFiltrados.map((cliente) => (
                 <li key={cliente.id_usuario} className="py-2">
-                  <button 
-                    onClick={() => verDetallesCliente(cliente)}
-                    className="w-full text-left font-bold text-[#070707] hover:text-[#8A2D3B] transition py-1"
-                  >
+                  <button onClick={() => verDetallesCliente(cliente)} className="w-full text-left font-bold text-[#070707] hover:text-[#8A2D3B] transition py-1">
                     {cliente.nombre || 'Sin nombre registrado'}
                   </button>
                 </li>
@@ -273,125 +270,125 @@ function AdminPanel() {
           </div>
         </div>
 
-        {/* Tarjeta de Bloqueo Pro con Slide */}
-        <div className="bg-white p-6 shadow-md border-t-4 border-gray-400 md:col-span-2 overflow-hidden">
+        {/* Tarjeta Unificada de Bloqueo */}
+        <div className="bg-white p-6 shadow-md border-t-4 border-gray-400 md:col-span-2">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-black uppercase tracking-tight text-[#070707]">Gestión de Cierres</h2>
             
-            {/* Switch de modo */}
             <div className="flex bg-gray-100 p-1 rounded-lg border-2 border-gray-200">
               <button 
-                onClick={() => setModoBloqueo('horas')}
-                className={`px-4 py-2 rounded-md font-bold text-xs uppercase transition ${modoBloqueo === 'horas' ? 'bg-[#8A2D3B] text-white shadow-md' : 'text-gray-500'}`}
+                onClick={() => { setModoBloqueo('horas'); setDiasSeleccionados([]); setMotivoBloqueo(''); }}
+                className={`px-4 py-2 rounded-md font-bold text-xs uppercase transition ${modoBloqueo === 'horas' ? 'bg-[#8A2D3B] text-white shadow-md' : 'text-gray-500 hover:bg-gray-200'}`}
               >
-                Horas
+                Horas Sueltas
               </button>
               <button 
-                onClick={() => setModoBloqueo('dias')}
-                className={`px-4 py-2 rounded-md font-bold text-xs uppercase transition ${modoBloqueo === 'dias' ? 'bg-[#8A2D3B] text-white shadow-md' : 'text-gray-500'}`}
+                onClick={() => { setModoBloqueo('dias'); setDiaHorasSeleccionado(null); setMotivoBloqueo(''); }}
+                className={`px-4 py-2 rounded-md font-bold text-xs uppercase transition ${modoBloqueo === 'dias' ? 'bg-[#8A2D3B] text-white shadow-md' : 'text-gray-500 hover:bg-gray-200'}`}
               >
-                Vacaciones / Días
+                Días / Vacaciones
               </button>
             </div>
           </div>
 
-          {/* Contenedor con efecto Slide */}
-          <div className="relative">
-            <div className={`flex transition-transform duration-500 ease-in-out ${modoBloqueo === 'horas' ? 'translate-x-0' : '-translate-x-full'}`}>
-              
-              {/* PANEL A: Bloqueo de Horas */}
-              <form onSubmit={manejarBloqueo} className="w-full shrink-0 pr-4 flex flex-col md:flex-row gap-4 items-end">
-                <div className="flex-1 w-full">
-                  <label className="block text-xs font-black text-gray-400 mb-1 uppercase">Fecha</label>
-                  <input type="date" required={modoBloqueo === 'horas'} value={fechaBloqueo} onChange={(e) => setFechaBloqueo(e.target.value)} className="w-full p-3 border-2 border-gray-100 rounded font-bold" />
-                </div>
-                <div className="flex-1 w-full flex gap-2">
-                   <div className="flex-1">
-                      <label className="block text-xs font-black text-gray-400 mb-1 uppercase">Inicio</label>
-                      <input type="time" required={modoBloqueo === 'horas'} value={horaInicioBloqueo} onChange={(e) => setHoraInicioBloqueo(e.target.value)} className="w-full p-3 border-2 border-gray-100 rounded font-bold" />
-                   </div>
-                   <div className="flex-1">
-                      <label className="block text-xs font-black text-gray-400 mb-1 uppercase">Fin</label>
-                      <input type="time" required={modoBloqueo === 'horas'} value={horaFinBloqueo} onChange={(e) => setHoraFinBloqueo(e.target.value)} className="w-full p-3 border-2 border-gray-100 rounded font-bold" />
-                   </div>
-                </div>
-                <button type="submit" className="bg-[#070707] text-white font-black uppercase tracking-widest py-4 px-8 rounded hover:bg-[#8A2D3B] transition h-[52px]">
-                  Bloquear Hueco
-                </button>
-              </form>
+          <div className="flex flex-col md:flex-row gap-6">
+            {/* El Calendario (Es el mismo para ambos modos) */}
+            <div className="flex-1 bg-gray-50 p-4 rounded-xl border-2 border-dashed border-gray-200">
+              <div className="flex justify-between items-center mb-4">
+                <button onClick={() => cambiarMes(-1)} className="font-black text-xl hover:text-[#8A2D3B]">&lt;</button>
+                <span className="text-sm font-black uppercase text-[#8A2D3B]">
+                  {mesNombres[mesActual]} {anioActual}
+                </span>
+                <button onClick={() => cambiarMes(1)} className="font-black text-xl hover:text-[#8A2D3B]">&gt;</button>
+              </div>
 
-              {/* PANEL B: Bloqueo de Días (Calendario) */}
-              <div className="w-full shrink-0 flex flex-col md:flex-row gap-6">
-                <div className="flex-1 bg-gray-50 p-4 rounded-xl border-2 border-dashed border-gray-200">
-                  <p className="text-xs font-black text-[#8A2D3B] uppercase mb-4">Selecciona los días para cerrar:</p>
-                  <div className="grid grid-cols-7 gap-1 text-center">
-                    {['L','M','X','J','V','S','D'].map(d => <span key={d} className="text-[10px] font-black text-gray-400">{d}</span>)}
-                    {Array.from({ length: diasEnMes }, (_, i) => {
-                      const d = i + 1;
-                      const fStr = formatearFecha(d, mesActual, anioActual);
-                      const fechaObj = new Date(anioActual, mesActual, d);
-                      fechaObj.setHours(0,0,0,0);
-                      const esPasado = fechaObj < hoy;
-                      const seleccionado = diasSeleccionados.includes(fStr);
-                      
-                      return (
-                        <button 
-                          key={d}
-                          disabled={esPasado}
-                          onClick={() => toggleDia(fStr)}
-                          className={`aspect-square text-sm font-bold rounded-md transition ${esPasado ? 'text-gray-200 cursor-not-allowed' : seleccionado ? 'bg-[#8A2D3B] text-white' : 'hover:bg-gray-200'}`}
-                        >
-                          {d}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div className="w-full md:w-64 flex flex-col justify-between">
+              <div className="grid grid-cols-7 gap-1 text-center">
+                {['L','M','X','J','V','S','D'].map(d => <span key={d} className="text-[10px] font-black text-gray-400 py-2">{d}</span>)}
+                
+                {Array.from({ length: espaciosVacios }).map((_, i) => <div key={`empty-${i}`} />)}
+
+                {Array.from({ length: diasEnMes }, (_, i) => {
+                  const d = i + 1;
+                  const fStr = formatearFecha(d, mesActual, anioActual);
+                  const fechaObj = new Date(anioActual, mesActual, d);
+                  fechaObj.setHours(0,0,0,0);
+                  const esPasado = fechaObj < hoy;
+                  
+                  // Lógica visual dependiendo del modo
+                  const seleccionado = modoBloqueo === 'dias' ? diasSeleccionados.includes(fStr) : false;
+
+                  return (
+                    <button 
+                      key={d}
+                      disabled={esPasado}
+                      onClick={() => {
+                        if (modoBloqueo === 'dias') {
+                          setDiasSeleccionados(prev => prev.includes(fStr) ? prev.filter(dia => dia !== fStr) : [...prev, fStr]);
+                        } else {
+                          setDiaHorasSeleccionado(fStr);
+                          setRangoHoras([]);
+                        }
+                      }}
+                      className={`aspect-square text-sm font-bold rounded-md transition ${
+                        esPasado ? 'text-gray-200 cursor-not-allowed' : 
+                        seleccionado ? 'bg-[#8A2D3B] text-white shadow-md' : 
+                        'hover:bg-gray-200 text-[#070707] border border-transparent hover:border-gray-300'
+                      }`}
+                    >
+                      {d}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Panel de Acción (Cambia según el modo) */}
+            <div className="w-full md:w-1/3 flex flex-col justify-center bg-gray-50 p-6 rounded-xl border-2 border-dashed border-gray-200">
+              {modoBloqueo === 'dias' ? (
+                <div className="flex flex-col h-full justify-between">
                   <div>
-                    <label className="block text-xs font-black text-gray-400 mb-1 uppercase">Motivo del cierre</label>
-                    <input type="text" placeholder="Ej: Vacaciones" value={motivoBloqueo} onChange={(e) => setMotivoBloqueo(e.target.value)} className="w-full p-3 border-2 border-gray-100 rounded font-bold" />
-                    <p className="mt-2 text-[10px] text-gray-500 italic">{diasSeleccionados.length} días seleccionados</p>
+                    <h3 className="font-black text-[#070707] uppercase text-sm mb-4">Cierre de días enteros</h3>
+                    <label className="block text-xs font-black text-gray-400 mb-1 uppercase">Motivo (Opcional)</label>
+                    <input type="text" placeholder="Ej: Vacaciones" value={motivoBloqueo} onChange={(e) => setMotivoBloqueo(e.target.value)} className="w-full p-3 border-2 border-gray-100 rounded font-bold focus:border-[#8A2D3B] focus:outline-none mb-2" />
+                    <p className="text-[10px] text-gray-500 font-bold uppercase">{diasSeleccionados.length} días seleccionados</p>
                   </div>
-                  <button onClick={manejarBloqueo} disabled={diasSeleccionados.length === 0} className="bg-[#070707] text-white font-black uppercase tracking-widest py-4 rounded hover:bg-[#8A2D3B] transition">
+                  <button onClick={manejarBloqueoDias} disabled={diasSeleccionados.length === 0 || cargandoBloqueo} className="bg-[#070707] text-white font-black uppercase tracking-widest py-4 rounded hover:bg-[#8A2D3B] transition disabled:opacity-50 mt-4">
                     Confirmar Cierre
                   </button>
                 </div>
-              </div>
-
+              ) : (
+                <div className="text-center text-gray-500 flex flex-col items-center gap-4 py-8">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="font-bold uppercase text-xs tracking-wider px-4">
+                    Haz clic en un día del calendario para abrir el selector de horas.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
+
       </div> 
 
-      {/* Modal flotante con la ficha del cliente */}
+      {/* Modal flotante del Cliente */}
       {clienteSeleccionado && (
-        <div className="fixed top-0 left-0 w-full h-full backdrop-blur-sm bg-white/10 flex items-center justify-center z-[1000] p-4">
+        <div className="fixed top-0 left-0 w-full h-full backdrop-blur-sm bg-black/40 flex items-center justify-center z-[1000] p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh] relative">
-            
             <div className="bg-[#8A2D3B] p-5 flex justify-between items-center text-[#F7F7FF]">
               <h3 className="text-xl font-bold uppercase tracking-wide">Ficha del Cliente</h3>
-              <button 
-                onClick={cerrarModal} 
-                className="text-white hover:text-gray-300 font-bold text-3xl leading-none"
-              >
-                &times;
-              </button>
+              <button onClick={cerrarModal} className="text-white hover:text-gray-300 font-bold text-3xl leading-none">&times;</button>
             </div>
-
             <div className="p-6 bg-gray-50 border-b border-gray-200">
-              <h4 className="text-3xl font-serif font-bold text-[#070707] mb-2">
-                {clienteSeleccionado.nombre}
-              </h4>
+              <h4 className="text-3xl font-serif font-bold text-[#070707] mb-2">{clienteSeleccionado.nombre}</h4>
               <div className="flex flex-col gap-2 text-sm text-gray-700 mt-3">
                 <p><strong>Email:</strong> {clienteSeleccionado.email}</p>
                 <p><strong>Telefono:</strong> {clienteSeleccionado.telefono || 'No proporcionado'}</p>
               </div>
             </div>
-
             <div className="p-6 overflow-y-auto flex-1 bg-white">
               <h5 className="font-bold text-lg mb-4 border-b pb-2">Historial de Citas</h5>
-              
               {cargandoHistorial ? (
                 <p className="text-gray-500 italic text-center py-4">Cargando historial...</p>
               ) : historialCitas.length === 0 ? (
@@ -405,25 +402,8 @@ function AdminPanel() {
                         <p className="text-sm text-gray-600 my-1">
                           Servicio: <span className="font-semibold text-[#8A2D3B]">{cita.servicio?.nombre || 'Desconocido'}</span>
                         </p>
-                        <div className="flex gap-2 text-xs mt-2">
-                          {cita.servicio?.precio && (
-                            <span className="bg-gray-100 text-[#070707] px-2 py-1 rounded font-bold border border-gray-200">
-                              {cita.servicio.precio} EUR
-                            </span>
-                          )}
-                          {cita.servicio?.duracion_minutos && (
-                            <span className="text-gray-500 px-2 py-1">
-                              Duracion: {cita.servicio.duracion_minutos} min
-                            </span>
-                          )}
-                        </div>
                       </div>
-                      
-                      <span className={`text-xs px-3 py-1 rounded-full font-bold uppercase ${
-                        cita.estado === 'CONFIRMADA' ? 'bg-green-100 text-green-700 border border-green-200' : 
-                        cita.estado === 'CANCELADA' ? 'bg-red-100 text-red-700 border border-red-200' : 
-                        'bg-blue-100 text-blue-700 border border-blue-200'
-                      }`}>
+                      <span className={`text-xs px-3 py-1 rounded-full font-bold uppercase ${cita.estado === 'CONFIRMADA' ? 'bg-green-100 text-green-700 border border-green-200' : cita.estado === 'CANCELADA' ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-blue-100 text-blue-700 border border-blue-200'}`}>
                         {cita.estado}
                       </span>
                     </li>
@@ -431,61 +411,39 @@ function AdminPanel() {
                 </ul>
               )}
             </div>
-
           </div>
         </div>
       )}
 
-      {/* Modal flotante del Calendario */}
+      {/* Modal flotante del Calendario de Citas (El de filtrar arriba) */}
       {modalCalendarioAbierto && (
-        <div className="fixed top-0 left-0 w-full h-full backdrop-blur-md bg-white/10 flex items-center justify-center z-[1000] p-4">
+        <div className="fixed top-0 left-0 w-full h-full backdrop-blur-md bg-black/40 flex items-center justify-center z-[1000] p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col relative">
-            
             <div className="bg-[#070707] p-4 flex justify-between items-center text-[#F7F7FF]">
               <h3 className="text-xl font-bold uppercase tracking-wide">Seleccionar Dia</h3>
-              <button 
-                onClick={() => setModalCalendarioAbierto(false)} 
-                className="text-gray-400 hover:text-white font-bold text-2xl leading-none"
-              >
-                &times;
-              </button>
+              <button onClick={() => setModalCalendarioAbierto(false)} className="text-gray-400 hover:text-white font-bold text-2xl leading-none">&times;</button>
             </div>
-
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
                 <button onClick={() => cambiarMes(-1)} className="font-black text-xl hover:text-[#8A2D3B] text-[#070707]">&lt;</button>
-                <span className="text-lg font-black uppercase text-[#8A2D3B]">
-                  {mesNombres[mesActual]} {anioActual}
-                </span>
+                <span className="text-lg font-black uppercase text-[#8A2D3B]">{mesNombres[mesActual]} {anioActual}</span>
                 <button onClick={() => cambiarMes(1)} className="font-black text-xl hover:text-[#8A2D3B] text-[#070707]">&gt;</button>
               </div>
-              
               <div className="grid grid-cols-7 gap-2 text-center text-sm">
-                {['L','M','X','J','V','S','D'].map(d => (
-                  <div key={d} className="text-[#070707] font-black py-1">{d}</div>
-                ))}
-                
-                {Array.from({ length: espaciosVacios }).map((_, i) => (
-                  <div key={`empty-${i}`} className="p-2"></div>
-                ))}
-                
+                {['L','M','X','J','V','S','D'].map(d => <div key={d} className="text-[#070707] font-black py-1">{d}</div>)}
+                {Array.from({ length: espaciosVacios }).map((_, i) => <div key={`empty-${i}`} className="p-2"></div>)}
                 {Array.from({ length: diasEnMes }, (_, i) => i + 1).map(dia => {
                   const fechaCasilla = new Date(anioActual, mesActual, dia);
                   fechaCasilla.setHours(0, 0, 0, 0);
                   const fechaStr = formatearFecha(dia, mesActual, anioActual);
-                  
                   const esPasado = fechaCasilla < hoy;
                   const esHoy = fechaCasilla.getTime() === hoy.getTime();
                   const estaSeleccionado = filtroFecha === fechaStr;
 
                   return (
                     <button 
-                      key={dia} 
-                      disabled={esPasado}
-                      onClick={() => {
-                        setFiltroFecha(fechaStr);
-                        setModalCalendarioAbierto(false);
-                      }}
+                      key={dia} disabled={esPasado}
+                      onClick={() => { setFiltroFecha(fechaStr); setModalCalendarioAbierto(false); }}
                       className={`aspect-square rounded font-bold transition flex items-center justify-center border-2
                         ${esPasado && !estaSeleccionado ? 'text-gray-400 bg-gray-50 border-gray-100 hover:border-gray-300' : 'text-[#070707] border-transparent hover:border-[#8A2D3B]'}
                         ${esHoy && !estaSeleccionado ? 'border-[#070707]' : ''}
@@ -501,6 +459,89 @@ function AdminPanel() {
           </div>
         </div>
       )}
+
+      {/* MODAL PARA BLOQUEAR HORAS*/}
+      {diaHorasSeleccionado && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[1000] p-4">
+          <div className="bg-white border-4 border-[#8A2D3B] p-6 md:p-8 rounded-xl shadow-[12px_12px_0px_0px_rgba(138,45,59,1)] max-w-2xl w-full flex flex-col max-h-[90vh]">
+            
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h2 className="text-2xl font-black uppercase text-[#070707] tracking-tight">Bloquear Horas</h2>
+                <p className="text-[#8A2D3B] font-bold mt-1">Para el día: {diaHorasSeleccionado}</p>
+                <p className="text-sm text-gray-500 font-medium mt-2 leading-tight max-w-md">
+                  Haz clic en una hora de inicio y luego en una hora de fin para seleccionar un rango. Si solo deseas bloquear 30 minutos, haz doble clic en la misma hora.
+                </p>
+              </div>
+              <button onClick={() => { setDiaHorasSeleccionado(null); setRangoHoras([]); }} className="text-gray-400 hover:text-[#8A2D3B] font-black text-3xl transition leading-none">
+                &times;
+              </button>
+            </div>
+
+            {/* Grid de botones de horas */}
+            <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 overflow-y-auto py-2 pr-2">
+              {generarHoras().map(hora => {
+                const isSel = isSelected(hora);
+                return (
+                  <button
+                    key={hora}
+                    onClick={() => handleSlotClick(hora)}
+                    className={`py-3 rounded text-sm font-black transition border-2 ${
+                      isSel 
+                        ? 'bg-[#8A2D3B] text-white border-[#8A2D3B] shadow-md transform scale-105' 
+                        : 'bg-white text-[#070707] border-gray-200 hover:border-[#8A2D3B] hover:text-[#8A2D3B]'
+                    }`}
+                  >
+                    {hora}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Resumen y Envío */}
+            <div className="mt-6 flex flex-col gap-4 border-t-4 border-gray-100 pt-6">
+              
+              <div className="flex items-center justify-between bg-gray-50 p-4 rounded-lg border-2 border-dashed border-gray-200">
+                <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Rango a bloquear</span>
+                {rangoHoras.length > 0 ? (
+                  <span className="font-bold text-[#8A2D3B] text-lg">{horaInicioCalculada} - {horaFinCalculada}</span>
+                ) : (
+                  <span className="font-bold text-gray-400 italic text-sm">Ninguno seleccionado</span>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-gray-400 mb-1 uppercase tracking-widest">Motivo (Opcional)</label>
+                <input
+                  type="text"
+                  placeholder="Ej: Médico, Reunión..."
+                  value={motivoBloqueo}
+                  onChange={(e) => setMotivoBloqueo(e.target.value)}
+                  className="w-full p-3 border-2 border-gray-200 rounded font-bold focus:border-[#8A2D3B] focus:outline-none transition"
+                />
+              </div>
+
+              <div className="flex gap-4 mt-2">
+                <button 
+                  onClick={() => { setDiaHorasSeleccionado(null); setRangoHoras([]); }}
+                  className="flex-1 bg-gray-200 text-[#070707] font-black uppercase tracking-widest py-4 rounded border-2 border-gray-300 hover:bg-gray-300 transition"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={manejarBloqueoHoras}
+                  disabled={cargandoBloqueo || rangoHoras.length === 0}
+                  className="flex-1 bg-[#8A2D3B] text-white font-black uppercase tracking-widest py-4 rounded border-2 border-[#8A2D3B] hover:bg-[#6b222d] transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {cargandoBloqueo ? 'Guardando...' : 'Confirmar'}
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
