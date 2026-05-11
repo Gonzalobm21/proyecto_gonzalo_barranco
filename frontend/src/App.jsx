@@ -14,59 +14,50 @@ function App() {
   const [userRole, setUserRole] = useState(null);
   const [loading, setLoading] = useState(true);
 
-useEffect(() => {
-    // Chivato de seguridad para comprobar que Render tiene bien tus variables
-    console.log("1. Arrancando App. URL Supabase:", import.meta.env.VITE_SUPABASE_URL ? "DETECTADA" : "¡FALTA!");
-
-    // El Radar ahora es el único jefe. Hace la carga inicial y vigila los cambios.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-      console.log("2. Radar disparado. Evento:", event);
-      
+// 1. EL RADAR DE SESIÓN: Solo mira si hay alguien conectado o no. Rápido y sin bloqueos.
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
+      console.log("1. Radar detecta cambio de sesión:", event);
       setSession(currentSession);
-
-      // Si cerramos sesión explícitamente
-      if (event === 'SIGNED_OUT') {
+      
+      // Si cerramos sesión o entramos sin cuenta, quitamos la pantalla de carga del tirón
+      if (!currentSession) {
         setUserRole(null);
         setLoading(false);
-      } 
-      // Si hay sesión (ya sea inicial o un nuevo login)
-      else if (currentSession) {
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // 2. EL BUSCADOR DE ROL: Solo arranca cuando el Radar avisa de que hay una sesión válida.
+  useEffect(() => {
+    const buscarRol = async () => {
+      // Solo buscamos si hay una sesión con un ID de usuario válido
+      if (session?.user?.id) {
+        console.log("2. Sesión activa confirmada. Buscando rol en Supabase...");
         try {
-          console.log("3. Buscando rol en la base de datos...");
-          const { data, error } = await supabase
+          const { data } = await supabase
             .from('usuario')
             .select('rol')
-            .eq('id_usuario', currentSession.user.id)
+            .eq('id_usuario', session.user.id)
             .maybeSingle();
-            
-          console.log("-> Respuesta cruda de Supabase:", { data, error });
 
           if (data) {
-            console.log("4. Rol encontrado:", data.rol);
+            console.log("3. Rol encontrado:", data.rol);
             setUserRole(data.rol);
-          } else {
-            console.warn("4. ¡ALERTA! Supabase ha devuelto vacío. El RLS está bloqueando la lectura.");
           }
         } catch (error) {
           console.error("Fallo al buscar rol:", error);
         } finally {
-          console.log("5. Levantando el telón de carga.");
+          console.log("4. Levantando el telón de carga.");
           setLoading(false); 
         }
-      } 
-      // Si entra a la web y no tiene cuenta iniciada
-      else {
-        console.log("3. No hay sesión activa. Modo invitado.");
-        setUserRole(null);
-        setLoading(false); // Levantamos el telón
       }
-    });
-
-    // Limpieza al desmontar
-    return () => {
-      subscription.unsubscribe();
     };
-  }, []);
+
+    buscarRol();
+  }, [session]); // Esto le dice a React: "Ejecuta esto solo cuando la variable 'session' cambie"
 
   if (loading) {
     return (
