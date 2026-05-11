@@ -121,9 +121,8 @@ app.post('/nueva-cita', async (req, res, next) => {
     }
 });
 
-// RUTA: Consultar horas ocupadas de un día específico
+// RUTA: Consultar horas ocupadas (Citas confirmadas + Bloqueos de agenda)
 app.get('/citas-ocupadas', async (req, res, next) => {
-    // Recibimos la fecha por la URL (ej: /citas-ocupadas?fecha=2026-04-08)
     const { fecha } = req.query;
 
     if (!fecha) {
@@ -131,17 +130,28 @@ app.get('/citas-ocupadas', async (req, res, next) => {
     }
 
     try {
-        // Buscamos solo las citas de ese día que estén confirmadas
-        const { data, error } = await supabase
+        // 1. Buscamos las citas confirmadas de ese día
+        const { data: citas, error: errorCitas } = await supabase
             .from('cita')
             .select('hora_inicio, hora_fin')
             .eq('fecha', fecha)
             .eq('estado', 'CONFIRMADA');
 
-        if (error) throw error;
+        if (errorCitas) throw errorCitas;
 
-        // Devolvemos el array con las horas de inicio y fin de esas citas
-        res.json(data);
+        // 2. Buscamos los bloqueos de agenda de ese día
+        const { data: bloqueos, error: errorBloqueos } = await supabase
+            .from('bloqueo_agenda')
+            .select('hora_inicio, hora_fin')
+            .eq('fecha', fecha);
+
+        if (errorBloqueos) throw errorBloqueos;
+
+        // 3. Juntamos las citas y los bloqueos en una sola lista
+        const horasOcupadas = [...(citas || []), ...(bloqueos || [])];
+
+        // 4. Se lo enviamos al Frontend (el cliente no notará la diferencia)
+        res.json(horasOcupadas);
     } catch (err) {
         next(err);
     }

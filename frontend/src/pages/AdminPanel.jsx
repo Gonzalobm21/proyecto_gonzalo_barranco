@@ -10,7 +10,14 @@ function AdminPanel() {
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null); // Para saber a quién hemos clicado
   const [historialCitas, setHistorialCitas] = useState([]); // Para guardar las citas del cliente clicado
   const [cargandoHistorial, setCargandoHistorial] = useState(false); // Para el loading del historial
- 
+  
+  // Estados para bloqueos de agenda
+  const [fechaBloqueo, setFechaBloqueo] = useState('');
+  const [horaInicioBloqueo, setHoraInicioBloqueo] = useState('');
+  const [horaFinBloqueo, setHoraFinBloqueo] = useState('');
+  const [motivoBloqueo, setMotivoBloqueo] = useState('');
+  const [cargandoBloqueo, setCargandoBloqueo] = useState(false);
+  
   // Lógica del calendarrio
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
@@ -121,6 +128,38 @@ function AdminPanel() {
     setHistorialCitas([]);
   };
 
+  // Función para guardar un bloqueo de horario
+  const manejarBloqueo = async (e) => {
+    e.preventDefault();
+    setCargandoBloqueo(true);
+    
+    try {
+      const { error } = await supabase
+        .from('bloqueo_agenda')
+        .insert([{
+            fecha: fechaBloqueo,
+            hora_inicio: horaInicioBloqueo,
+            hora_fin: horaFinBloqueo,
+            motivo: motivoBloqueo
+        }]);
+
+      if (error) throw error;
+      
+      alert("¡Horario bloqueado con éxito!");
+      
+      // Limpiamos el formulario para el siguiente uso
+      setFechaBloqueo('');
+      setHoraInicioBloqueo('');
+      setHoraFinBloqueo('');
+      setMotivoBloqueo('');
+    } catch (error) {
+      console.error("Error al bloquear horario:", error.message);
+      alert("Hubo un error al bloquear el horario.");
+    } finally {
+      setCargandoBloqueo(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#F7F7FF] p-8 text-[#070707]">
       {/* Boton de volver */}
@@ -215,6 +254,32 @@ function AdminPanel() {
               ))}
             </ul>
           </div>
+        </div>
+
+        {/* Tarjeta de Bloqueo de Horarios (Nueva) */}
+        <div className="bg-white p-6 shadow-md border-t-4 border-gray-400 md:col-span-2">
+          <h2 className="text-2xl font-bold mb-4">Bloquear Horario en Agenda</h2>
+          <form onSubmit={manejarBloqueo} className="flex flex-col md:flex-row gap-4 items-end">
+            <div className="flex-1 w-full">
+              <label className="block text-sm text-gray-600 font-bold mb-1 uppercase tracking-wider">Fecha</label>
+              <input type="date" required value={fechaBloqueo} onChange={(e) => setFechaBloqueo(e.target.value)} className="w-full p-3 border border-gray-300 rounded focus:border-[#8A2D3B] focus:outline-none" />
+            </div>
+            <div className="flex-1 w-full">
+              <label className="block text-sm text-gray-600 font-bold mb-1 uppercase tracking-wider">Hora Inicio</label>
+              <input type="time" required value={horaInicioBloqueo} onChange={(e) => setHoraInicioBloqueo(e.target.value)} className="w-full p-3 border border-gray-300 rounded focus:border-[#8A2D3B] focus:outline-none" />
+            </div>
+            <div className="flex-1 w-full">
+              <label className="block text-sm text-gray-600 font-bold mb-1 uppercase tracking-wider">Hora Fin</label>
+              <input type="time" required value={horaFinBloqueo} onChange={(e) => setHoraFinBloqueo(e.target.value)} className="w-full p-3 border border-gray-300 rounded focus:border-[#8A2D3B] focus:outline-none" />
+            </div>
+            <div className="flex-1 w-full">
+              <label className="block text-sm text-gray-600 font-bold mb-1 uppercase tracking-wider">Motivo (Opcional)</label>
+              <input type="text" placeholder="Ej: Médico, Vacaciones..." value={motivoBloqueo} onChange={(e) => setMotivoBloqueo(e.target.value)} className="w-full p-3 border border-gray-300 rounded focus:border-[#8A2D3B] focus:outline-none" />
+            </div>
+            <button type="submit" disabled={cargandoBloqueo} className="bg-[#070707] text-white font-bold uppercase tracking-widest py-3 px-6 rounded hover:bg-[#8A2D3B] transition h-[50px] whitespace-nowrap">
+              {cargandoBloqueo ? 'Guardando...' : 'Bloquear'}
+            </button>
+          </form>
         </div>
       </div>
 
