@@ -6,10 +6,10 @@ function AdminPanel() {
   const [clientes, setClientes] = useState([]);
   const [citas, setCitas] = useState([]);
   const [cargando, setCargando] = useState(true);
-  const [busqueda, setBusqueda] = useState(''); // Para el texto del buscador
-  const [clienteSeleccionado, setClienteSeleccionado] = useState(null); // Para saber a quién hemos clicado
-  const [historialCitas, setHistorialCitas] = useState([]); // Para guardar las citas del cliente clicado
-  const [cargandoHistorial, setCargandoHistorial] = useState(false); // Para el loading del historial
+  const [busqueda, setBusqueda] = useState(''); 
+  const [clienteSeleccionado, setClienteSeleccionado] = useState(null); 
+  const [historialCitas, setHistorialCitas] = useState([]); 
+  const [cargandoHistorial, setCargandoHistorial] = useState(false); 
   
   // Estados para bloqueos de agenda
   const [fechaBloqueo, setFechaBloqueo] = useState('');
@@ -17,7 +17,9 @@ function AdminPanel() {
   const [horaFinBloqueo, setHoraFinBloqueo] = useState('');
   const [motivoBloqueo, setMotivoBloqueo] = useState('');
   const [cargandoBloqueo, setCargandoBloqueo] = useState(false);
-  
+  const [modoBloqueo, setModoBloqueo] = useState('horas'); // 'horas' o 'dias'
+  const [diasSeleccionados, setDiasSeleccionados] = useState([]); // Array de strings 'YYYY-MM-DD'
+
   // Lógica del calendarrio
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
@@ -39,7 +41,6 @@ function AdminPanel() {
   const citasFiltradas = filtroFecha 
     ? citas.filter(cita => cita.fecha === filtroFecha) 
     : citas;
-
 
   useEffect(() => {
     const cargarDatos = async () => {
@@ -134,30 +135,46 @@ function AdminPanel() {
     setCargandoBloqueo(true);
     
     try {
-      const { error } = await supabase
-        .from('bloqueo_agenda')
-        .insert([{
-            fecha: fechaBloqueo,
-            hora_inicio: horaInicioBloqueo,
-            hora_fin: horaFinBloqueo,
-            motivo: motivoBloqueo
-        }]);
+      let datosAInsertar = [];
 
+      if (modoBloqueo === 'horas') {
+        datosAInsertar = [{
+          fecha: fechaBloqueo,
+          hora_inicio: horaInicioBloqueo,
+          hora_fin: horaFinBloqueo,
+          motivo: motivoBloqueo
+        }];
+      } else {
+        if (diasSeleccionados.length === 0) throw new Error("Selecciona al menos un día");
+        
+        datosAInsertar = diasSeleccionados.map(fechaStr => ({
+          fecha: fechaStr,
+          hora_inicio: '00:00',
+          hora_fin: '23:59',
+          motivo: motivoBloqueo || 'Vacaciones/Cierre'
+        }));
+      }
+
+      const { error } = await supabase.from('bloqueo_agenda').insert(datosAInsertar);
       if (error) throw error;
       
-      alert("¡Horario bloqueado con éxito!");
+      alert(modoBloqueo === 'horas' ? "Horario bloqueado" : "Días bloqueados con éxito");
       
-      // Limpiamos el formulario para el siguiente uso
-      setFechaBloqueo('');
-      setHoraInicioBloqueo('');
-      setHoraFinBloqueo('');
-      setMotivoBloqueo('');
+      // Limpieza
+      setFechaBloqueo(''); setHoraInicioBloqueo(''); setHoraFinBloqueo('');
+      setMotivoBloqueo(''); setDiasSeleccionados([]);
     } catch (error) {
-      console.error("Error al bloquear horario:", error.message);
-      alert("Hubo un error al bloquear el horario.");
+      alert(error.message);
     } finally {
       setCargandoBloqueo(false);
     }
+  };
+
+  // Función auxiliar para añadir/quitar días del array al clickar
+  const toggleDia = (fechaStr) => {
+    setDiasSeleccionados(prev => 
+      prev.includes(fechaStr) ? prev.filter(d => d !== fechaStr) : [...prev, fechaStr]
+    );
   };
 
   return (
@@ -255,69 +272,103 @@ function AdminPanel() {
             </ul>
           </div>
         </div>
-        {/* Tarjeta de Bloqueo de Horarios */}
-        <div className="bg-white p-6 shadow-md border-t-4 border-gray-400 md:col-span-2">
-          <h2 className="text-2xl font-bold mb-4 uppercase tracking-tight text-[#070707]">
-            Bloquear Horario en Agenda
-          </h2>
-          <form onSubmit={manejarBloqueo} className="flex flex-col md:flex-row gap-4 items-end">
-            <div className="flex-1 w-full">
-              <label className="block text-xs font-black text-gray-400 mb-1 uppercase tracking-tighter">Fecha</label>
-              <input 
-                type="date" 
-                required 
-                value={fechaBloqueo} 
-                onChange={(e) => setFechaBloqueo(e.target.value)} 
-                className="w-full p-3 border-2 border-gray-100 rounded font-bold focus:border-[#8A2D3B] focus:outline-none transition" 
-              />
+
+        {/* Tarjeta de Bloqueo Pro con Slide */}
+        <div className="bg-white p-6 shadow-md border-t-4 border-gray-400 md:col-span-2 overflow-hidden">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-black uppercase tracking-tight text-[#070707]">Gestión de Cierres</h2>
+            
+            {/* Switch de modo */}
+            <div className="flex bg-gray-100 p-1 rounded-lg border-2 border-gray-200">
+              <button 
+                onClick={() => setModoBloqueo('horas')}
+                className={`px-4 py-2 rounded-md font-bold text-xs uppercase transition ${modoBloqueo === 'horas' ? 'bg-[#8A2D3B] text-white shadow-md' : 'text-gray-500'}`}
+              >
+                Horas
+              </button>
+              <button 
+                onClick={() => setModoBloqueo('dias')}
+                className={`px-4 py-2 rounded-md font-bold text-xs uppercase transition ${modoBloqueo === 'dias' ? 'bg-[#8A2D3B] text-white shadow-md' : 'text-gray-500'}`}
+              >
+                Vacaciones / Días
+              </button>
             </div>
-            <div className="flex-1 w-full">
-              <label className="block text-xs font-black text-gray-400 mb-1 uppercase tracking-tighter">Inicio</label>
-              <input 
-                type="time" 
-                required 
-                value={horaInicioBloqueo} 
-                onChange={(e) => setHoraInicioBloqueo(e.target.value)} 
-                className="w-full p-3 border-2 border-gray-100 rounded font-bold focus:border-[#8A2D3B] focus:outline-none transition" 
-              />
+          </div>
+
+          {/* Contenedor con efecto Slide */}
+          <div className="relative">
+            <div className={`flex transition-transform duration-500 ease-in-out ${modoBloqueo === 'horas' ? 'translate-x-0' : '-translate-x-full'}`}>
+              
+              {/* PANEL A: Bloqueo de Horas */}
+              <form onSubmit={manejarBloqueo} className="w-full shrink-0 pr-4 flex flex-col md:flex-row gap-4 items-end">
+                <div className="flex-1 w-full">
+                  <label className="block text-xs font-black text-gray-400 mb-1 uppercase">Fecha</label>
+                  <input type="date" required={modoBloqueo === 'horas'} value={fechaBloqueo} onChange={(e) => setFechaBloqueo(e.target.value)} className="w-full p-3 border-2 border-gray-100 rounded font-bold" />
+                </div>
+                <div className="flex-1 w-full flex gap-2">
+                   <div className="flex-1">
+                      <label className="block text-xs font-black text-gray-400 mb-1 uppercase">Inicio</label>
+                      <input type="time" required={modoBloqueo === 'horas'} value={horaInicioBloqueo} onChange={(e) => setHoraInicioBloqueo(e.target.value)} className="w-full p-3 border-2 border-gray-100 rounded font-bold" />
+                   </div>
+                   <div className="flex-1">
+                      <label className="block text-xs font-black text-gray-400 mb-1 uppercase">Fin</label>
+                      <input type="time" required={modoBloqueo === 'horas'} value={horaFinBloqueo} onChange={(e) => setHoraFinBloqueo(e.target.value)} className="w-full p-3 border-2 border-gray-100 rounded font-bold" />
+                   </div>
+                </div>
+                <button type="submit" className="bg-[#070707] text-white font-black uppercase tracking-widest py-4 px-8 rounded hover:bg-[#8A2D3B] transition h-[52px]">
+                  Bloquear Hueco
+                </button>
+              </form>
+
+              {/* PANEL B: Bloqueo de Días (Calendario) */}
+              <div className="w-full shrink-0 flex flex-col md:flex-row gap-6">
+                <div className="flex-1 bg-gray-50 p-4 rounded-xl border-2 border-dashed border-gray-200">
+                  <p className="text-xs font-black text-[#8A2D3B] uppercase mb-4">Selecciona los días para cerrar:</p>
+                  <div className="grid grid-cols-7 gap-1 text-center">
+                    {['L','M','X','J','V','S','D'].map(d => <span key={d} className="text-[10px] font-black text-gray-400">{d}</span>)}
+                    {Array.from({ length: diasEnMes }, (_, i) => {
+                      const d = i + 1;
+                      const fStr = formatearFecha(d, mesActual, anioActual);
+                      const fechaObj = new Date(anioActual, mesActual, d);
+                      fechaObj.setHours(0,0,0,0);
+                      const esPasado = fechaObj < hoy;
+                      const seleccionado = diasSeleccionados.includes(fStr);
+                      
+                      return (
+                        <button 
+                          key={d}
+                          disabled={esPasado}
+                          onClick={() => toggleDia(fStr)}
+                          className={`aspect-square text-sm font-bold rounded-md transition ${esPasado ? 'text-gray-200 cursor-not-allowed' : seleccionado ? 'bg-[#8A2D3B] text-white' : 'hover:bg-gray-200'}`}
+                        >
+                          {d}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="w-full md:w-64 flex flex-col justify-between">
+                  <div>
+                    <label className="block text-xs font-black text-gray-400 mb-1 uppercase">Motivo del cierre</label>
+                    <input type="text" placeholder="Ej: Vacaciones" value={motivoBloqueo} onChange={(e) => setMotivoBloqueo(e.target.value)} className="w-full p-3 border-2 border-gray-100 rounded font-bold" />
+                    <p className="mt-2 text-[10px] text-gray-500 italic">{diasSeleccionados.length} días seleccionados</p>
+                  </div>
+                  <button onClick={manejarBloqueo} disabled={diasSeleccionados.length === 0} className="bg-[#070707] text-white font-black uppercase tracking-widest py-4 rounded hover:bg-[#8A2D3B] transition">
+                    Confirmar Cierre
+                  </button>
+                </div>
+              </div>
+
             </div>
-            <div className="flex-1 w-full">
-              <label className="block text-xs font-black text-gray-400 mb-1 uppercase tracking-tighter">Fin</label>
-              <input 
-                type="time" 
-                required 
-                value={horaFinBloqueo} 
-                onChange={(e) => setHoraFinBloqueo(e.target.value)} 
-                className="w-full p-3 border-2 border-gray-100 rounded font-bold focus:border-[#8A2D3B] focus:outline-none transition" 
-              />
-            </div>
-            <div className="flex-1 w-full">
-              <label className="block text-xs font-black text-gray-400 mb-1 uppercase tracking-tighter">Motivo</label>
-              <input 
-                type="text" 
-                placeholder="Ej: Médico, Vacaciones..." 
-                value={motivoBloqueo} 
-                onChange={(e) => setMotivoBloqueo(e.target.value)} 
-                className="w-full p-3 border-2 border-gray-100 rounded font-bold focus:border-[#8A2D3B] focus:outline-none transition" 
-              />
-            </div>
-            <button 
-              type="submit" 
-              disabled={cargandoBloqueo} 
-              className="bg-[#070707] text-white font-black uppercase tracking-widest py-4 px-8 rounded border-2 border-[#070707] hover:bg-[#8A2D3B] hover:border-[#8A2D3B] transition disabled:opacity-50 h-[52px]"
-            >
-              {cargandoBloqueo ? '...' : 'Bloquear'}
-            </button>
-          </form>
+          </div>
         </div>
-      </div>
+      </div> 
 
       {/* Modal flotante con la ficha del cliente */}
       {clienteSeleccionado && (
         <div className="fixed top-0 left-0 w-full h-full backdrop-blur-sm bg-white/10 flex items-center justify-center z-[1000] p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh] relative">
             
-            {/* Cabecera del Modal */}
             <div className="bg-[#8A2D3B] p-5 flex justify-between items-center text-[#F7F7FF]">
               <h3 className="text-xl font-bold uppercase tracking-wide">Ficha del Cliente</h3>
               <button 
@@ -328,7 +379,6 @@ function AdminPanel() {
               </button>
             </div>
 
-            {/* Datos Personales */}
             <div className="p-6 bg-gray-50 border-b border-gray-200">
               <h4 className="text-3xl font-serif font-bold text-[#070707] mb-2">
                 {clienteSeleccionado.nombre}
@@ -339,7 +389,6 @@ function AdminPanel() {
               </div>
             </div>
 
-            {/* Historial de Citas */}
             <div className="p-6 overflow-y-auto flex-1 bg-white">
               <h5 className="font-bold text-lg mb-4 border-b pb-2">Historial de Citas</h5>
               
