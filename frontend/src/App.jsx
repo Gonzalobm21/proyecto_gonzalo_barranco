@@ -17,7 +17,6 @@ function App() {
 // 1. EL RADAR DE SESIÓN: Solo mira si hay alguien conectado o no. Rápido y sin bloqueos.
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
-      console.log("1. Radar detecta cambio de sesión:", event);
       setSession(currentSession);
       
       // Si cerramos sesión o entramos sin cuenta, quitamos la pantalla de carga del tirón
@@ -35,7 +34,6 @@ function App() {
     const buscarRol = async () => {
       // Solo buscamos si hay una sesión con un ID de usuario válido
       if (session?.user?.id) {
-        console.log("2. Sesión activa confirmada. Buscando rol en Supabase...");
         try {
           const { data } = await supabase
             .from('usuario')
@@ -44,13 +42,11 @@ function App() {
             .maybeSingle();
 
           if (data) {
-            console.log("3. Rol encontrado:", data.rol);
             setUserRole(data.rol);
           }
         } catch (error) {
           console.error("Fallo al buscar rol:", error);
         } finally {
-          console.log("4. Levantando el telón de carga.");
           setLoading(false); 
         }
       }
