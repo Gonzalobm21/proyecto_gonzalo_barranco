@@ -21,6 +21,9 @@ function AdminPanel() {
   const [diaHorasSeleccionado, setDiaHorasSeleccionado] = useState(null);
   const [rangoHoras, setRangoHoras] = useState([]);
 
+  // Estado para el modal de confirmación de cita
+  const [citaACompletar, setCitaACompletar] = useState(null);
+
   // Lógica del calendario principal
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
@@ -93,6 +96,34 @@ function AdminPanel() {
   const cerrarModal = () => {
     setClienteSeleccionado(null);
     setHistorialCitas([]);
+  };
+
+  // Función que se ejecuta al darle a "Aceptar" en el modal de confirmación
+  const ejecutarMarcarCompletada = async () => {
+    if (!citaACompletar) return;
+    
+    try {
+      const { error } = await supabase
+        .from('cita')
+        .update({ estado: 'COMPLETADA' })
+        .eq('id_cita', citaACompletar);
+
+      if (error) throw error;
+
+      // 1. Lo quitamos de la lista de Próximas Citas
+      setCitas(prev => prev.filter(c => c.id_cita !== citaACompletar));
+      
+      // 2. Si casualmente tenemos el historial del cliente abierto, lo actualizamos ahí también
+      setHistorialCitas(prev => prev.map(c => 
+        c.id_cita === citaACompletar ? { ...c, estado: 'COMPLETADA' } : c
+      ));
+
+      // 3. Cerramos el modal
+      setCitaACompletar(null);
+    } catch (error) {
+      console.error("Error al completar cita:", error.message);
+      alert("Hubo un error. Asegúrate de tener los permisos RLS activados en Supabase.");
+    }
   };
 
   /* LÓGICA MATEMÁTICA PARA LAS HORAS */
@@ -232,12 +263,30 @@ function AdminPanel() {
             <div className="max-h-64 overflow-y-auto pr-2">
               <ul className="divide-y divide-gray-200">
                 {citasFiltradas.map((cita) => (
-                  <li key={cita.id_cita} className="py-3">
+                  <li key={cita.id_cita} className="py-3 flex justify-between items-center border-b border-gray-100 last:border-0">
                     <div>
-                      <p className="font-bold text-[#070707] uppercase text-sm">{cita.usuario?.nombre || 'Cliente desconocido'}</p>
-                      <p className="text-[#8A2D3B] font-medium">{cita.fecha} - {cita.hora_inicio}</p>
-                      <p className="text-xs text-gray-500">Estado: {cita.estado}</p>
+                      <p className="font-bold text-[#070707] uppercase text-sm">
+                        {cita.usuario?.nombre || 'Cliente desconocido'}
+                      </p>
+                      <p className="text-[#8A2D3B] font-medium text-xs mb-1">
+                        {cita.fecha} - {cita.hora_inicio}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black uppercase bg-gray-200 text-gray-600 px-2 py-0.5 rounded">
+                          {cita.servicio?.nombre || 'Servicio'}
+                        </span>
+                        <span className="text-[10px] font-black uppercase text-gray-500">
+                          Estado: {cita.estado}
+                        </span>
+                      </div>
                     </div>
+                    
+                    <button 
+                      onClick={() => setCitaACompletar(cita.id_cita)}
+                      className="bg-green-50 text-green-700 border border-green-300 px-3 py-2 rounded text-xs font-bold uppercase hover:bg-green-600 hover:text-white transition shadow-sm ml-2"
+                    >
+                      Marcar como Completada
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -401,7 +450,12 @@ function AdminPanel() {
                           Servicio: <span className="font-semibold text-[#8A2D3B]">{cita.servicio?.nombre || 'Desconocido'}</span>
                         </p>
                       </div>
-                      <span className={`text-xs px-3 py-1 rounded-full font-bold uppercase ${cita.estado === 'CONFIRMADA' ? 'bg-green-100 text-green-700 border border-green-200' : cita.estado === 'CANCELADA' ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-blue-100 text-blue-700 border border-blue-200'}`}>
+                      <span className={`text-xs px-3 py-1 rounded-full font-bold uppercase ${
+                        cita.estado === 'COMPLETADA' ? 'bg-gray-100 text-gray-600 border border-gray-200' : 
+                        cita.estado === 'CANCELADA' ? 'bg-red-50 text-red-700 border border-red-200' : 
+                        cita.estado === 'CONFIRMADA' ? 'bg-green-100 text-green-700 border border-green-200' :
+                        'bg-blue-100 text-blue-700 border border-blue-200'
+                        }`}>
                         {cita.estado}
                       </span>
                     </li>
@@ -518,6 +572,39 @@ function AdminPanel() {
                   {cargandoBloqueo ? 'Guardando...' : 'Confirmar'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Modal de Confirmación para Marcar como Completada */}
+      {citaACompletar && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[1100] p-4">
+          <div className="bg-white border-4 border-[#8A2D3B] p-6 md:p-8 rounded-xl shadow-[12px_12px_0px_0px_rgba(138,45,59,1)] max-w-sm w-full text-center">
+            
+            <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-green-500">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            
+            <h3 className="text-xl font-black uppercase text-[#070707] mb-2 tracking-tight">¿Finalizar Cita?</h3>
+            <p className="text-gray-500 text-sm font-medium mb-8">
+              ¿Desea marcar esta cita como completada? Desaparecerá de las próximas citas.
+            </p>
+            
+            <div className="flex gap-4">
+              <button 
+                onClick={() => setCitaACompletar(null)}
+                className="flex-1 bg-gray-200 text-[#070707] font-black uppercase tracking-widest py-3 rounded border-2 border-gray-300 hover:bg-gray-300 transition text-xs"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={ejecutarMarcarCompletada}
+                className="flex-1 bg-[#8A2D3B] text-white font-black uppercase tracking-widest py-3 rounded border-2 border-[#8A2D3B] hover:bg-red-800 transition text-xs"
+              >
+                Aceptar
+              </button>
             </div>
           </div>
         </div>
