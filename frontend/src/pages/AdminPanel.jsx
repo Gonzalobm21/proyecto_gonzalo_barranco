@@ -278,20 +278,25 @@ function AdminPanel() {
             <div className="max-h-64 overflow-y-auto pr-2">
               <ul className="divide-y divide-gray-200">
                 {citasFiltradas.map((cita) => (
-                  <li key={cita.id_cita} className="py-3 flex justify-between items-center group">
+                  <li key={cita.id_cita} className="py-3 flex justify-between items-center border-b border-gray-50 last:border-0">
                     <div>
-                      <p className="font-bold text-[#070707] uppercase text-sm">{cita.usuario?.nombre || 'Cliente desconocido'}</p>
-                      <p className="text-[#8A2D3B] font-medium">{cita.fecha} - {cita.hora_inicio}</p>
-                      <p className="text-xs text-gray-500">Estado: {cita.estado}</p>
+                      <p className="font-bold text-[#070707] uppercase text-sm">{cita.usuario?.nombre}</p>
+                      <p className="text-[#8A2D3B] font-medium text-xs">{cita.fecha} - {cita.hora_inicio}</p>
+                      <div className="flex gap-2 mt-1">
+                        <span className="text-[10px] font-black uppercase bg-gray-100 px-2 py-0.5 rounded text-gray-500">
+                          {cita.servicio?.nombre}
+                        </span>
+                        <span className="text-[10px] font-black uppercase text-gray-400">
+                          Estado: {cita.estado}
+                        </span>
+                      </div>
                     </div>
                     
-                    {/* Botón para marcar como completada ) */}
                     <button 
-                      onClick={() => marcarComoCompletada(cita.id_cita)}
-                      className="bg-green-100 text-green-700 border border-green-200 px-3 py-2 rounded text-xs font-bold uppercase tracking-wider hover:bg-green-200 hover:text-green-800 transition shadow-sm"
-                      title="Marcar como completada"
+                      onClick={() => setCitaACompletar(cita.id_cita)}
+                      className="bg-green-50 text-green-700 border-2 border-green-200 px-4 py-2 rounded font-black text-[10px] uppercase hover:bg-green-600 hover:text-white hover:border-green-600 transition shadow-sm"
                     >
-                      Marcar como completada
+                      Completar
                     </button>
                   </li>
                 ))}
