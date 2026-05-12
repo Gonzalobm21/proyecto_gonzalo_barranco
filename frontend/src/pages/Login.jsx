@@ -30,7 +30,7 @@ function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-patron px-4 py-12 relative">
+    <div className="min-h-screen flex items-center justify-center bg-[#F4F1EA] px-4 py-12 relative">
       
       {/* Botón para volver al Inicio */}
       <div className="absolute top-8 left-8 md:top-12 md:left-12">

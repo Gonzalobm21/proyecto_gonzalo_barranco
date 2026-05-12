@@ -171,7 +171,7 @@ function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-patron text-texto-oscuro">
+    <div className="min-h-screen bg-[#F4F1EA] text-texto-oscuro">
       <Navbar />
 
       <div className="max-w-4xl mx-auto p-8">

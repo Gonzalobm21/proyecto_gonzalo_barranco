@@ -56,7 +56,7 @@ function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-patron text-texto-oscuro">
+    <div className="min-h-screen bg-[#F4F1EA] text-texto-oscuro">
       
       {/* Usamos el nuevo componente Navbar */}
       <Navbar />

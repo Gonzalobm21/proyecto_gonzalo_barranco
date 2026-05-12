@@ -78,7 +78,7 @@ function Register() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-patron text-texto-oscuro">
+    <div className="min-h-screen flex flex-col bg-[#F4F1EA] text-texto-oscuro">
       <Navbar />
 
       <main className="flex-grow flex items-center justify-center p-8">
