@@ -92,57 +92,48 @@ function Home() {
   return (
     <div className="min-h-screen bg-[#F4F1EA] text-texto-oscuro">
       
-      {/* Usamos el nuevo componente Navbar */}
       <Navbar />
 
       <main className="max-w-5xl mx-auto p-8 space-y-24 py-16">
         
-        {/* SECCIÓN EXPERIENCIA CON CARRUSEL */}
-      <section className="py-20 bg-white border-y-4 border-texto-oscuro">
+        {/* CARRUSEL DE FOTOS */}
+      <section className="py-20 bg-[#F4F1EA]">
         <div className="container mx-auto px-4">
-          <h2 className="text-5xl font-black uppercase text-center mb-16 tracking-tighter italic">
+          
+          <h2 className="text-5xl font-black uppercase text-center mb-12 tracking-tighter italic text-[#070707]">
             La Experiencia
           </h2>
 
-          <div className="max-w-[1000px] mx-auto h-[500px] w-full m-auto py-4 px-4 relative group">
-            {/* Imagen del Carrusel */}
+          <div className="max-w-[1000px] mx-auto h-[550px] w-full relative group">
             <div
               style={{ backgroundImage: `url(${imagenesGaleria[currentIndex]})` }}
-              className="w-full h-full rounded-2xl bg-center bg-cover duration-500 border-4 border-[#070707] shadow-[10px_10px_0px_0px_rgba(7,7,7,1)]"
+              className="w-full h-full rounded-xl bg-center bg-cover duration-500 border-4 border-[#070707] shadow-[10px_10px_0px_0px_rgba(7,7,7,1)]"
             ></div>
-
-            {/* Flecha Izquierda */}
-            <div className="hidden group-hover:block absolute top-[50%] -translate-x-0 translate-y-[-50%] left-8 text-2xl rounded-full p-2 bg-[#8A2D3B] text-white cursor-pointer border-2 border-[#070707] shadow-[4px_4px_0px_0px_rgba(7,7,7,1)] active:translate-y-[-45%] active:shadow-none transition-all">
-              <button onClick={prevSlide}>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Flecha Derecha */}
-            <div className="hidden group-hover:block absolute top-[50%] -translate-x-0 translate-y-[-50%] right-8 text-2xl rounded-full p-2 bg-[#8A2D3B] text-white cursor-pointer border-2 border-[#070707] shadow-[4px_4px_0px_0px_rgba(7,7,7,1)] active:translate-y-[-45%] active:shadow-none transition-all">
-              <button onClick={nextSlide}>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Indicadores de bolitas (puntos inferiores) */}
-            <div className="flex justify-center py-6 gap-2">
+            <button 
+              onClick={prevSlide}
+              className="hidden group-hover:flex absolute top-[50%] -translate-y-[-50%] left-4 z-10 items-center justify-center w-12 h-12 bg-white/90 text-[#070707] rounded-full border-2 border-[#070707] shadow-[4px_4px_0px_0px_rgba(7,7,7,1)] hover:bg-[#8A2D3B] hover:text-white transition-all active:translate-y-[-45%] active:shadow-none"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <button 
+              onClick={nextSlide}
+              className="hidden group-hover:flex absolute top-[50%] -translate-y-[-50%] right-4 z-10 items-center justify-center w-12 h-12 bg-white/90 text-[#070707] rounded-full border-2 border-[#070707] shadow-[4px_4px_0px_0px_rgba(7,7,7,1)] hover:bg-[#8A2D3B] hover:text-white transition-all active:translate-y-[-45%] active:shadow-none"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+            <div className="flex justify-center mt-8 gap-3">
               {imagenesGaleria.map((_, slideIndex) => (
-                <div
+                <button
                   key={slideIndex}
                   onClick={() => setCurrentIndex(slideIndex)}
-                  className={`cursor-pointer transition-all ${
-                    currentIndex === slideIndex 
-                    ? 'text-[#8A2D3B] scale-125' 
-                    : 'text-gray-300'
+                  className={`w-3 h-3 rounded-full border-2 border-[#070707] transition-all ${
+                    currentIndex === slideIndex ? 'bg-[#8A2D3B] scale-125' : 'bg-white'
                   }`}
-                >
-                  <div className={`w-3 h-3 rounded-full border-2 border-[#070707] ${currentIndex === slideIndex ? 'bg-[#8A2D3B]' : 'bg-white'}`}></div>
-                </div>
+                />
               ))}
             </div>
           </div>
