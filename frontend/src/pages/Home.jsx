@@ -100,9 +100,7 @@ function Home() {
       <section className="py-20 bg-[#F4F1EA]">
         <div className="container mx-auto px-4">
           
-          <h2 className="text-5xl font-black uppercase text-center mb-12 tracking-tighter italic text-[#070707]">
-            La Experiencia
-          </h2>
+          <h2 className="text-4xl font-black mb-8 text-[#8A2D3B] uppercase tracking-wide">Galería</h2>
 
           <div className="max-w-[1000px] mx-auto h-[550px] w-full relative group">
             <div
