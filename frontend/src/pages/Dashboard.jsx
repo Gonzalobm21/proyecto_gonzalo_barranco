@@ -213,25 +213,32 @@ function Dashboard() {
                 const fechaCasilla = new Date(anioActual, mesActual, dia);
                 fechaCasilla.setHours(0, 0, 0, 0);
                 const fechaStr = formatearFecha(dia, mesActual, anioActual);
+                
+                // Definimos las variables que le faltaban a tu código
+                const esPasado = fechaCasilla < hoy;
+                const esHoy = fechaCasilla.getTime() === hoy.getTime();
                 const esDiaCerrado = diasCerrados.includes(fechaStr);
+                
+                // Agrupamos todo en tu variable deshabilitado
                 const deshabilitado = 
                   fechaCasilla.getDay() === 0 || 
                   fechaCasilla.getDay() === 6 || 
-                  fechaCasilla < hoy || 
+                  esPasado || 
                   fechaCasilla > limiteMaximo || 
                   esDiaCerrado; 
+                  
                 const estaSeleccionado = fechaSeleccionada === fechaStr;
+
                 return (
                   <button
                     key={dia}
-                    // Añadimos esDiaCerrado al bloqueo
-                    disabled={esPasado || esFinDeSemana || esDiaCerrado}
+                    disabled={deshabilitado}
                     onClick={() => {
                       setFechaSeleccionada(fechaStr);
                       setHora(null);
                     }}
                     className={`aspect-square rounded-lg font-bold transition-all border-2 flex flex-col items-center justify-center relative
-                      ${(esPasado || esFinDeSemana || esDiaCerrado) 
+                      ${deshabilitado 
                         ? 'bg-gray-50 text-gray-200 border-gray-100 cursor-not-allowed' 
                         : estaSeleccionado
                           ? 'bg-[#8A2D3B] text-white border-[#8A2D3B] shadow-lg scale-105 z-10'
@@ -241,9 +248,9 @@ function Dashboard() {
                     `}
                   >
                     {dia}
-                    {/* Opcional: Un puntito rojo si quieres que sea ultra visual que está cerrado */}
+                    {/* Puntito rojo visual para indicar que está cerrado por el admin */}
                     {esDiaCerrado && !esPasado && (
-                      <span className="absolute bottom-1 w-1 h-1 bg-red-400 rounded-full"></span>
+                      <span className="absolute bottom-1 w-1.5 h-1.5 bg-red-400 rounded-full"></span>
                     )}
                   </button>
                 );
