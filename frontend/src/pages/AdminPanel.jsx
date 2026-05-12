@@ -24,6 +24,9 @@ function AdminPanel() {
   // Estado para el modal de confirmación de cita
   const [citaACompletar, setCitaACompletar] = useState(null);
 
+  // Estado para el modal de éxito/error en los bloqueos
+  const [notificacion, setNotificacion] = useState({ visible: false, mensaje: '', tipo: 'exito' });
+
   // Lógica del calendario principal
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
@@ -191,18 +194,23 @@ function AdminPanel() {
       }));
       const { error } = await supabase.from('bloqueo_agenda').insert(datos);
       if (error) throw error;
-      alert("Días bloqueados con éxito");
+      
+      setNotificacion({ visible: true, mensaje: 'Días bloqueados con éxito', tipo: 'exito' });
+      
       setDiasSeleccionados([]);
       setMotivoBloqueo('');
     } catch (err) {
-      alert(err.message);
+      setNotificacion({ visible: true, mensaje: err.message, tipo: 'error' });
     } finally {
       setCargandoBloqueo(false);
     }
   };
 
   const manejarBloqueoHoras = async () => {
-    if (rangoHoras.length === 0) return alert("Selecciona al menos una hora.");
+    if (rangoHoras.length === 0) {
+      setNotificacion({ visible: true, mensaje: 'Selecciona al menos una hora', tipo: 'error' });
+      return;
+    }
     setCargandoBloqueo(true);
     try {
       const { error } = await supabase.from('bloqueo_agenda').insert([{
@@ -212,12 +220,14 @@ function AdminPanel() {
         motivo: motivoBloqueo || 'Cierre de horas'
       }]);
       if (error) throw error;
-      alert("Horario bloqueado con éxito");
+
+      setNotificacion({ visible: true, mensaje: 'Horario bloqueado con éxito', tipo: 'exito' });
+      
       setDiaHorasSeleccionado(null);
       setRangoHoras([]);
       setMotivoBloqueo('');
     } catch (err) {
-      alert(err.message);
+      setNotificacion({ visible: true, mensaje: err.message, tipo: 'error' });
     } finally {
       setCargandoBloqueo(false);
     }
@@ -606,6 +616,40 @@ function AdminPanel() {
                 Aceptar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Notificación (Éxito o Error) */}
+      {notificacion.visible && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[1200] p-4">
+          <div className="bg-white border-4 border-[#070707] p-8 rounded-xl shadow-[12px_12px_0px_0px_rgba(7,7,7,1)] max-w-sm w-full text-center">
+            
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border-4 ${notificacion.tipo === 'exito' ? 'bg-green-50 border-green-500' : 'bg-red-50 border-red-500'}`}>
+              {notificacion.tipo === 'exito' ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              )}
+            </div>
+            
+            <h3 className="text-xl font-black uppercase text-[#070707] mb-2 tracking-tight">
+              {notificacion.tipo === 'exito' ? '¡Hecho!' : 'Atención'}
+            </h3>
+            <p className="text-gray-500 text-sm font-medium mb-8">
+              {notificacion.mensaje}
+            </p>
+            
+            <button 
+              onClick={() => setNotificacion({ ...notificacion, visible: false })}
+              className="w-full bg-[#070707] text-white font-black uppercase tracking-widest py-3 rounded border-2 border-[#070707] hover:bg-[#8A2D3B] hover:border-[#8A2D3B] transition text-xs"
+            >
+              Entendido
+            </button>
           </div>
         </div>
       )}
