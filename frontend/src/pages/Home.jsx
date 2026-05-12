@@ -100,7 +100,7 @@ function Home() {
       <section className="py-20 bg-[#F4F1EA]">
         <div className="container mx-auto px-4">
           
-          <h2 className="text-4xl font-black mb-8 text-[#8A2D3B] uppercase tracking-wide">Galería</h2>
+          <h2 className="text-4xl font-black mb-8 text-[#8A2D3B] text-center uppercase tracking-wide">Galería</h2>
 
           <div className="max-w-[1000px] mx-auto h-[550px] w-full relative group">
             <div
@@ -139,7 +139,7 @@ function Home() {
       </section>
 
         <section>
-          <h2 className="text-4xl font-black mb-8 text-[#8A2D3B] uppercase tracking-wide">Servicios</h2>
+          <h2 className="text-4xl font-black mb-8 text-[#8A2D3B] text-center uppercase tracking-wide">Servicios</h2>
           
           {loading ? (
             <div className="text-center text-barber-azul font-bold text-xl py-10">Cargando la carta de servicios...</div>
