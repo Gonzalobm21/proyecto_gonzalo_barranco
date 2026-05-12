@@ -203,6 +203,29 @@ function AdminPanel() {
     }
   };
 
+  // Función para marcar cita como COMPLETADA en la base de datos
+  const marcarComoCompletada = async (idCita) => {
+    const confirmar = window.confirm("¿Estás seguro de marcar esta cita como completada?");
+    if (!confirmar) return;
+
+    try {
+      // Actualizamos la base de datos 
+      const { error } = await supabase
+        .from('cita')
+        .update({ estado: 'COMPLETADA' })
+        .eq('id_cita', idCita);
+
+      if (error) throw error;
+
+      // Actualizamos la pantalla al instante (borrando esa cita de la lista visible)
+      setCitas(prevCitas => prevCitas.filter(cita => cita.id_cita !== idCita));
+      
+    } catch (error) {
+      console.error("Error al completar cita:", error.message);
+      alert("Hubo un error al actualizar la cita.");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#F7F7FF] p-8 text-[#070707]">
       <div className="mb-6">
@@ -243,12 +266,21 @@ function AdminPanel() {
             <div className="max-h-64 overflow-y-auto pr-2">
               <ul className="divide-y divide-gray-200">
                 {citasFiltradas.map((cita) => (
-                  <li key={cita.id_cita} className="py-3">
+                  <li key={cita.id_cita} className="py-3 flex justify-between items-center group">
                     <div>
                       <p className="font-bold text-[#070707] uppercase text-sm">{cita.usuario?.nombre || 'Cliente desconocido'}</p>
                       <p className="text-[#8A2D3B] font-medium">{cita.fecha} - {cita.hora_inicio}</p>
                       <p className="text-xs text-gray-500">Estado: {cita.estado}</p>
                     </div>
+                    
+                    {/* Botón para marcar como completada ) */}
+                    <button 
+                      onClick={() => marcarComoCompletada(cita.id_cita)}
+                      className="bg-green-100 text-green-700 border border-green-200 px-3 py-2 rounded text-xs font-bold uppercase tracking-wider hover:bg-green-200 hover:text-green-800 transition shadow-sm"
+                      title="Marcar como completada"
+                    >
+                      Marcar como completada
+                    </button>
                   </li>
                 ))}
               </ul>
