@@ -75,7 +75,11 @@ function Home() {
   }, []);
 
   const renderEstrellas = (calificacion) => {
-    return "★".repeat(calificacion) + "☆".repeat(5 - calificacion);
+    return Array.from({ length: 5 }, (_, i) => (
+      <span key={i} className={`text-sm ${i < calificacion ? "text-amber-500" : "text-gray-200"}`}>
+        ★
+      </span>
+    ));
   };
 
   const formatearFecha = (isoString) => {
@@ -172,48 +176,53 @@ function Home() {
           )}
         </section>
 
-        {/* --- SECCIÓN DE RESEÑAS --- */}
+        {/* SECCIÓN RESEÑAS */}
         {reviews.length > 0 && (
-          <section className="bg-white border-t-8 border-texto-oscuro py-16 px-8">
-            <div className="max-w-6xl mx-auto">
-              
-              <h2 className="text-4xl md:text-5xl font-black mb-12 text-center uppercase tracking-wide text-texto-oscuro">
-                Lo que dicen <span className="text-[#8A2D3B]">Nuestros Clientes</span>
-              </h2>
+          <section className="py-24 bg-[#F4F1EA]">
+            <div className="container mx-auto px-4">
+              <div className="max-w-3xl mx-auto text-center mb-16">
+                <h2 className="text-4xl font-black mb-4 text-[#8A2D3B] text-center uppercase tracking-wide">Experiencias de nuestros clientes</h2>
+                <div className="w-16 h-1 bg-[#8A2D3B] mx-auto"></div>
+              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
                 {reviews.map((review) => (
                   <div 
                     key={review.id_review} 
-                    className="bg-fondo-claro border-4 border-texto-oscuro p-6 shadow-[6px_6px_0px_0px_rgba(7,7,7,1)] flex flex-col justify-between"
+                    className="bg-white p-10 rounded-sm shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col justify-between relative border border-gray-100"
                   >
                     <div>
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="text-2xl text-yellow-500 tracking-widest">
+                      <div className="flex justify-between items-center mb-8">
+                        <div className="flex gap-0.5">
                           {renderEstrellas(review.calificacion)}
                         </div>
-                        <span className="text-xs font-bold text-gray-400 mt-1 ml-auto">
+                        <span className="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-light">
                           {formatearFecha(review.fecha_creacion)}
                         </span>
                       </div>
                       
-                      <p className="font-bold text-gray-700 italic mb-6">
+                      <p className="text-gray-600 leading-relaxed font-light italic text-lg mb-10">
                         "{review.comentario}"
                       </p>
                     </div>
                     
-                    <div className="border-t-2 border-texto-oscuro pt-4">
-                      <p className="font-black uppercase text-sm text-texto-oscuro">
-                        {review.usuario?.nombre || "Cliente Anónimo"}
-                      </p>
-                      <p className="text-xs font-bold text-[#8A2D3B] uppercase mt-1">
-                        Servicio: {review.servicio?.nombre}
-                      </p>
+                    <div className="flex items-center gap-4">
+                      {/* Avatar circular sutil */}
+                      <div className="w-10 h-10 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center text-gray-400 text-xs font-light tracking-tighter">
+                        {review.usuario?.nombre?.charAt(0) || "C"}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-[#070707] tracking-wide">
+                          {review.usuario?.nombre || "Cliente Anónimo"}
+                        </p>
+                        <p className="text-[10px] text-[#8A2D3B] uppercase tracking-widest font-medium">
+                          {review.servicio?.nombre}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
-
             </div>
           </section>
         )}
