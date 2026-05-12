@@ -20,6 +20,7 @@ function AdminPanel() {
   // Estados para el Modal de Horas
   const [diaHorasSeleccionado, setDiaHorasSeleccionado] = useState(null);
   const [rangoHoras, setRangoHoras] = useState([]);
+  const [horasYaBloqueadas, setHorasYaBloqueadas] = useState([]);
 
   // Estado para el modal de confirmación de cita
   const [citaACompletar, setCitaACompletar] = useState(null);
@@ -152,6 +153,35 @@ function AdminPanel() {
     const h = Math.floor(m / 60);
     const mins = m % 60;
     return `${String(h).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+  };
+
+  // Función para consultar las horas ya bloqueadas de un día específico
+  const cargarHorasBloqueadas = async (fechaStr) => {
+    try {
+      const { data, error } = await supabase
+        .from('bloqueo_agenda')
+        .select('hora_inicio, hora_fin')
+        .eq('fecha', fechaStr);
+
+      if (error) throw error;
+
+      const bloqueadas = new Set();
+      data.forEach(bloqueo => {
+        const startMins = timeToMins(bloqueo.hora_inicio);
+        const endMins = timeToMins(bloqueo.hora_fin);
+
+        // Comprobamos qué botones de nuestro panel caen dentro del bloque cerrado
+        generarHoras().forEach(hora => {
+          const t = timeToMins(hora);
+          if (t >= startMins && t < endMins) {
+            bloqueadas.add(hora);
+          }
+        });
+      });
+      setHorasYaBloqueadas(Array.from(bloqueadas));
+    } catch (err) {
+      console.error("Error al cargar horas bloqueadas:", err.message);
+    }
   };
 
   let horaInicioCalculada = null;
@@ -385,6 +415,8 @@ function AdminPanel() {
                         } else {
                           setDiaHorasSeleccionado(fStr);
                           setRangoHoras([]);
+                          setHorasYaBloqueadas([]); // Limpiamos por si acaso
+                          cargarHorasBloqueadas(fStr); // Buscamos las de este día
                         }
                       }}
                       className={`aspect-square text-sm font-bold rounded-md transition ${
@@ -538,17 +570,22 @@ function AdminPanel() {
               <button onClick={() => { setDiaHorasSeleccionado(null); setRangoHoras([]); }} className="text-gray-400 hover:text-[#8A2D3B] font-black text-3xl transition leading-none">&times;</button>
             </div>
 
-            <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 overflow-y-auto py-2 pr-2">
+           <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 overflow-y-auto py-2 pr-2">
               {generarHoras().map(hora => {
                 const isSel = isSelected(hora);
+                const estaBloqueada = horasYaBloqueadas.includes(hora);
+
                 return (
                   <button
                     key={hora}
+                    disabled={estaBloqueada}
                     onClick={() => handleSlotClick(hora)}
                     className={`py-3 rounded text-sm font-black transition border-2 ${
-                      isSel
-                        ? 'bg-[#8A2D3B] text-white border-[#8A2D3B] shadow-md transform scale-105'
-                        : 'bg-white text-[#070707] border-gray-200 hover:border-[#8A2D3B] hover:text-[#8A2D3B]'
+                      estaBloqueada
+                        ? 'bg-gray-100 text-gray-300 border-gray-100 cursor-not-allowed opacity-60'
+                        : isSel
+                          ? 'bg-[#8A2D3B] text-white border-[#8A2D3B] shadow-md transform scale-105'
+                          : 'bg-white text-[#070707] border-gray-200 hover:border-[#8A2D3B] hover:text-[#8A2D3B]'
                     }`}
                   >
                     {hora}
