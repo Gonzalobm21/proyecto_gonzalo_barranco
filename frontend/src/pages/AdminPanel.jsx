@@ -10,7 +10,8 @@ function AdminPanel() {
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null); 
   const [historialCitas, setHistorialCitas] = useState([]); 
   const [cargandoHistorial, setCargandoHistorial] = useState(false); 
-  
+  const [citaACompletar, setCitaACompletar] = useState(null); // Para el modal de marcar como COMPLETADA
+
   // Estados para bloqueos de agenda
   const [modoBloqueo, setModoBloqueo] = useState('horas'); // 'horas' o 'dias'
   const [diasSeleccionados, setDiasSeleccionados] = useState([]); 
@@ -204,25 +205,36 @@ function AdminPanel() {
   };
 
   // Función para marcar cita como COMPLETADA en la base de datos
-  const marcarComoCompletada = async (idCita) => {
-    const confirmar = window.confirm("¿Estás seguro de marcar esta cita como completada?");
-    if (!confirmar) return;
+  const ejecutarMarcarCompletada = async () => {
+    if (!citaACompletar) return;
+    setCargandoBloqueo(true); // Reutilizamos este loading o creamos uno nuevo
 
     try {
-      // Actualizamos la base de datos 
       const { error } = await supabase
         .from('cita')
         .update({ estado: 'COMPLETADA' })
-        .eq('id_cita', idCita);
+        .eq('id_cita', citaACompletar);
 
       if (error) throw error;
 
-      // Actualizamos la pantalla al instante (borrando esa cita de la lista visible)
-      setCitas(prevCitas => prevCitas.filter(cita => cita.id_cita !== idCita));
+      // Actualizamos el estado local para que desaparezca de "Próximas Citas" 
+      // y se actualice en el historial del cliente si está abierto
+      const nuevasCitas = citas.map(c => 
+        c.id_cita === citaACompletar ? { ...c, estado: 'COMPLETADA' } : c
+      );
+      setCitas(nuevasCitas);
       
+      // Si el historial está abierto, también lo actualizamos ahí
+      setHistorialCitas(prev => prev.map(c => 
+        c.id_cita === citaACompletar ? { ...c, estado: 'COMPLETADA' } : c
+      ));
+
+      setCitaACompletar(null);
     } catch (error) {
-      console.error("Error al completar cita:", error.message);
-      alert("Hubo un error al actualizar la cita.");
+      console.error("Error:", error.message);
+      alert("No se pudo actualizar la base de datos. Revisa los permisos RLS.");
+    } finally {
+      setCargandoBloqueo(false);
     }
   };
 
@@ -300,13 +312,33 @@ function AdminPanel() {
           />
           <div className="max-h-64 overflow-y-auto pr-2">
             <ul className="divide-y divide-gray-200">
-              {clientesFiltrados.map((cliente) => (
-                <li key={cliente.id_usuario} className="py-2">
-                  <button onClick={() => verDetallesCliente(cliente)} className="w-full text-left font-bold text-[#070707] hover:text-[#8A2D3B] transition py-1">
-                    {cliente.nombre || 'Sin nombre registrado'}
-                  </button>
-                </li>
-              ))}
+              {citasFiltradas.map((cita) => (
+                  <li key={cita.id_cita} className="py-3 flex justify-between items-center border-b border-gray-50 last:border-0">
+                    <div>
+                      <p className="font-bold text-[#070707] uppercase text-sm">{cita.usuario?.nombre}</p>
+                      <p className="text-[#8A2D3B] font-medium text-xs">{cita.fecha} - {cita.hora_inicio}</p>
+                      <div className="flex gap-2 mt-1">
+                        <span className="text-[10px] font-black uppercase bg-gray-100 px-2 py-0.5 rounded text-gray-500">
+                          {cita.servicio?.nombre}
+                        </span>
+                        <span className={`text-xs px-3 py-1 rounded-full font-bold uppercase ${
+                          cita.estado === 'COMPLETADA' ? 'bg-gray-100 text-gray-500 border border-gray-200' : 
+                          cita.estado === 'CANCELADA' ? 'bg-red-50 text-red-600 border border-red-100' : 
+                            'bg-green-100 text-green-700 border border-green-200'
+                          }`}>
+                          {cita.estado}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <button 
+                      onClick={() => setCitaACompletar(cita.id_cita)}
+                      className="bg-green-50 text-green-700 border-2 border-green-200 px-4 py-2 rounded font-black text-[10px] uppercase hover:bg-green-600 hover:text-white hover:border-green-600 transition shadow-sm"
+                    >
+                      Completar
+                    </button>
+                  </li>
+                ))}
             </ul>
           </div>
         </div>
@@ -583,7 +615,37 @@ function AdminPanel() {
 
             </div>
           </div>
+      {/* Modal de Confirmación para Completar Cita */}
+      {citaACompletar && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[1100] p-4">
+          <div className="bg-white border-4 border-[#8A2D3B] p-8 rounded-xl shadow-[12px_12px_0px_0px_rgba(138,45,59,1)] max-w-sm w-full text-center">
+            <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-green-500">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-black uppercase text-[#070707] mb-2">¿Cita finalizada?</h3>
+            <p className="text-gray-500 text-sm font-medium mb-8">
+              ¿Deseas marcar esta cita como completada? Esta acción actualizará la base de datos permanentemente.
+            </p>
+            <div className="flex gap-4">
+              <button 
+                onClick={() => setCitaACompletar(null)}
+                className="flex-1 py-3 bg-gray-100 text-gray-400 font-black uppercase text-xs rounded border-2 border-gray-200 hover:bg-gray-200 transition"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={ejecutarMarcarCompletada}
+                className="flex-1 py-3 bg-[#8A2D3B] text-white font-black uppercase text-xs rounded border-2 border-[#8A2D3B] hover:bg-red-800 transition"
+              >
+                Aceptar
+              </button>
+            </div>
+          </div>
         </div>
+      )}
+      </div>
       )}
 
     </div>
