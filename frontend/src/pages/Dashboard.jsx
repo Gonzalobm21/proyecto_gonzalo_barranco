@@ -21,6 +21,9 @@ function Dashboard() {
   const [fechaSeleccionada, setFechaSeleccionada] = useState(null);
   const [horasOcupadas, setHorasOcupadas] = useState([]);
 
+  // Estado para almacenar los días que el admin ha cerrado por completo
+  const [diasCerrados, setDiasCerrados] = useState([]);
+
   useEffect(() => {
     const idGuardado = localStorage.getItem('servicioSeleccionadoId');
     if (!idGuardado) {
@@ -57,6 +60,21 @@ function Dashboard() {
     };
     traerHorasOcupadas();
   }, [fechaSeleccionada]);
+
+  useEffect(() => {
+    const cargarDiasCerrados = async () => {
+      const { data, error } = await supabase
+        .from('bloqueo_agenda')
+        .select('fecha')
+        .eq('hora_inicio', '00:00')
+        .eq('hora_fin', '23:59'); // Filtramos solo los días completos
+
+      if (!error && data) {
+        setDiasCerrados(data.map(bloqueo => bloqueo.fecha));
+      }
+    };
+    cargarDiasCerrados();
+  }, [mesVisible]); // Se recarga si el admin cambia de mes
 
   const anioActual = mesVisible.getFullYear();
   const mesActual = mesVisible.getMonth();
@@ -195,17 +213,38 @@ function Dashboard() {
                 const fechaCasilla = new Date(anioActual, mesActual, dia);
                 fechaCasilla.setHours(0, 0, 0, 0);
                 const fechaStr = formatearFecha(dia, mesActual, anioActual);
-                const deshabilitado = fechaCasilla.getDay() === 0 || fechaCasilla.getDay() === 6 || fechaCasilla < hoy || fechaCasilla > limiteMaximo;
+                const esDiaCerrado = diasCerrados.includes(fechaStr);
+                const deshabilitado = 
+                  fechaCasilla.getDay() === 0 || 
+                  fechaCasilla.getDay() === 6 || 
+                  fechaCasilla < hoy || 
+                  fechaCasilla > limiteMaximo || 
+                  esDiaCerrado; 
                 const estaSeleccionado = fechaSeleccionada === fechaStr;
                 return (
-                  <button 
-                    key={dia} onClick={() => setFechaSeleccionada(fechaStr)} disabled={deshabilitado}
-                    className={`aspect-square rounded font-bold transition flex items-center justify-center border-2
-                      ${deshabilitado ? 'text-gray-400 border-gray-100 cursor-not-allowed bg-gray-50' : 'border-transparent hover:border-barber-azul cursor-pointer text-texto-oscuro'} 
-                      ${estaSeleccionado ? 'bg-barber-azul text-fondo-claro border-barber-azul shadow-md' : ''}
+                  <button
+                    key={dia}
+                    // Añadimos esDiaCerrado al bloqueo
+                    disabled={esPasado || esFinDeSemana || esDiaCerrado}
+                    onClick={() => {
+                      setFechaSeleccionada(fechaStr);
+                      setHora(null);
+                    }}
+                    className={`aspect-square rounded-lg font-bold transition-all border-2 flex flex-col items-center justify-center relative
+                      ${(esPasado || esFinDeSemana || esDiaCerrado) 
+                        ? 'bg-gray-50 text-gray-200 border-gray-100 cursor-not-allowed' 
+                        : estaSeleccionado
+                          ? 'bg-[#8A2D3B] text-white border-[#8A2D3B] shadow-lg scale-105 z-10'
+                          : 'bg-white text-[#070707] border-transparent hover:border-[#8A2D3B] hover:bg-gray-50'
+                      }
+                      ${esHoy && !estaSeleccionado ? 'border-[#070707]' : ''}
                     `}
                   >
                     {dia}
+                    {/* Opcional: Un puntito rojo si quieres que sea ultra visual que está cerrado */}
+                    {esDiaCerrado && !esPasado && (
+                      <span className="absolute bottom-1 w-1 h-1 bg-red-400 rounded-full"></span>
+                    )}
                   </button>
                 );
               })}
