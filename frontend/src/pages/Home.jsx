@@ -3,13 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer'; 
-import foto1 from '../assets/foto1.png';
-import foto2 from '../assets/foto2.png';
-import foto3 from '../assets/foto3.png';
-import foto4 from '../assets/foto4.png';
-import foto5 from '../assets/foto5.png';
-import foto6 from '../assets/foto6.png';
-import foto7 from '../assets/foto7.png';
+import foto1 from '../assets/foto1.webp';
+import foto2 from '../assets/foto2.webp';
+import foto3 from '../assets/foto3.webp';
+import foto4 from '../assets/foto4.webp';
+import foto5 from '../assets/foto5.webp';
+import foto6 from '../assets/foto6.webp';
+import foto7 from '../assets/foto7.webp';
 
 function Home() {
   const [servicios, setServicios] = useState([]);
