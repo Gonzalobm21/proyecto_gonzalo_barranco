@@ -7,6 +7,7 @@ const supabase = require('./supabase');
 
 const authRoutes = require('./routes/auth');
 const citasRoutes = require('./routes/citas');
+const { enviarConfirmacionCita } = require('./services/emailService');
 
 const app = express();
 
@@ -185,12 +186,11 @@ app.post('/nueva-cita', async (req, res, next) => {
     const { id_servicio, fecha, hora_inicio, id_usuario } = req.body;
 
     try {
-        // 1. Buscar la duración del servicio en la BD
-        const { data: servicio, error: errorServicio } = await supabase
-            .from('servicio')
-            .select('duracion_minutos')
-            .eq('id_servicio', id_servicio)
-            .single();
+        // 1. Buscar datos del servicio y email del usuario en paralelo
+        const [{ data: servicio, error: errorServicio }, { data: usuario }] = await Promise.all([
+            supabase.from('servicio').select('duracion_minutos, nombre, precio').eq('id_servicio', id_servicio).single(),
+            supabase.from('usuario').select('email').eq('id_usuario', id_usuario).single()
+        ]);
 
         if (errorServicio || !servicio) {
             return res.status(400).json({ error: "El servicio no existe." });
@@ -238,10 +238,20 @@ app.post('/nueva-cita', async (req, res, next) => {
 
         if (errorInsert) throw errorInsert;
 
-        // Si todo ha ido bien
-        res.status(201).json({ 
-            mensaje: "Cita reservada correctamente", 
-            cita: nuevaCita[0] 
+        if (usuario?.email) {
+            enviarConfirmacionCita({
+                emailCliente: usuario.email,
+                nombreServicio: servicio.nombre,
+                precio: servicio.precio,
+                fecha,
+                horaInicio: hora_inicio,
+                horaFin: hora_fin_db
+            }).catch(err => console.error('Error al enviar email de confirmación:', err.message));
+        }
+
+        res.status(201).json({
+            mensaje: "Cita reservada correctamente",
+            cita: nuevaCita[0]
         });
 
     } catch (err) {
