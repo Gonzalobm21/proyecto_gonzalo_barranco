@@ -17,6 +17,13 @@ function MisCitas() {
   const [errorMensaje, setErrorMensaje] = useState(null);
   const [enviandoReview, setEnviandoReview] = useState(false);
 
+  // Filtros y paginación
+  const [orden, setOrden] = useState('reciente');
+  const [filtroServicio, setFiltroServicio] = useState('');
+  const [filtroEstado, setFiltroEstado] = useState('');
+  const [paginaActual, setPaginaActual] = useState(1);
+  const CITAS_POR_PAGINA = 10;
+
   useEffect(() => {
     const cargarCitas = async () => {
       try {
@@ -124,6 +131,33 @@ function MisCitas() {
     navigate('/dashboard');
   };    
 
+  const serviciosUnicos = [...new Set(citas.map(c => c.servicio?.nombre).filter(Boolean))].sort();
+
+  const citasFiltradas = citas
+    .filter(c => !filtroServicio || c.servicio?.nombre === filtroServicio)
+    .filter(c => !filtroEstado || c.estado === filtroEstado)
+    .sort((a, b) => {
+      switch (orden) {
+        case 'antiguo':   return a.fecha.localeCompare(b.fecha);
+        case 'servicio':  return a.servicio?.nombre.localeCompare(b.servicio?.nombre);
+        case 'estado':    return a.estado.localeCompare(b.estado);
+        default:          return b.fecha.localeCompare(a.fecha);
+      }
+    });
+
+  const totalPaginas = Math.ceil(citasFiltradas.length / CITAS_POR_PAGINA);
+  const citasPaginadas = citasFiltradas.slice(
+    (paginaActual - 1) * CITAS_POR_PAGINA,
+    paginaActual * CITAS_POR_PAGINA
+  );
+
+  const hayFiltrosActivos = filtroServicio || filtroEstado || orden !== 'reciente';
+
+  const aplicarFiltro = (setter) => (valor) => {
+    setter(valor);
+    setPaginaActual(1);
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-[#F4F1EA] text-texto-oscuro">
       <Navbar />
@@ -154,8 +188,64 @@ function MisCitas() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {citas.map(cita => (
+          <>
+            {/* Barra de filtros */}
+            <div className="flex flex-wrap items-center gap-3 mb-8 p-4 bg-white border-2 border-gray-100 rounded-xl">
+              <span className="text-xs font-black uppercase tracking-widest text-gray-400">Ordenar y filtrar:</span>
+
+              <select
+                value={orden}
+                onChange={e => aplicarFiltro(setOrden)(e.target.value)}
+                className="border-2 border-texto-oscuro bg-white font-bold text-xs px-3 py-2 focus:outline-none focus:border-[#8A2D3B] cursor-pointer rounded"
+              >
+                <option value="reciente">Fecha: más reciente</option>
+                <option value="antiguo">Fecha: más antiguo</option>
+                <option value="servicio">Servicio (A-Z)</option>
+                <option value="estado">Estado (A-Z)</option>
+              </select>
+
+              <select
+                value={filtroServicio}
+                onChange={e => aplicarFiltro(setFiltroServicio)(e.target.value)}
+                className="border-2 border-texto-oscuro bg-white font-bold text-xs px-3 py-2 focus:outline-none focus:border-[#8A2D3B] cursor-pointer rounded"
+              >
+                <option value="">Todos los servicios</option>
+                {serviciosUnicos.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+
+              <select
+                value={filtroEstado}
+                onChange={e => aplicarFiltro(setFiltroEstado)(e.target.value)}
+                className="border-2 border-texto-oscuro bg-white font-bold text-xs px-3 py-2 focus:outline-none focus:border-[#8A2D3B] cursor-pointer rounded"
+              >
+                <option value="">Todos los estados</option>
+                <option value="CANCELADA">Cancelada</option>
+                <option value="COMPLETADA">Completada</option>
+                <option value="CONFIRMADA">Confirmada</option>
+              </select>
+
+              {hayFiltrosActivos && (
+                <button
+                  onClick={() => { setOrden('reciente'); setFiltroServicio(''); setFiltroEstado(''); setPaginaActual(1); }}
+                  className="text-xs font-black uppercase tracking-widest text-[#8A2D3B] hover:underline"
+                >
+                  Limpiar filtros
+                </button>
+              )}
+            </div>
+
+            {citasFiltradas.length === 0 ? (
+              <div className="bg-white border-4 border-texto-oscuro p-10 rounded-xl text-center shadow-[8px_8px_0px_0px_rgba(7,7,7,1)]">
+                <p className="font-bold text-xl text-gray-500">No hay citas que coincidan con los filtros seleccionados.</p>
+              </div>
+            ) : (
+              <>
+                <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-6">
+                  Mostrando {(paginaActual - 1) * CITAS_POR_PAGINA + 1}–{Math.min(paginaActual * CITAS_POR_PAGINA, citasFiltradas.length)} de {citasFiltradas.length} citas
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {citasPaginadas.map(cita => (
               <div 
                 key={cita.id_cita} 
                 className={`bg-white border-4 border-texto-oscuro p-6 rounded-xl shadow-[8px_8px_0px_0px_rgba(7,7,7,1)] flex flex-col justify-between transition-transform hover:-translate-y-1
@@ -212,8 +302,43 @@ function MisCitas() {
                 </div>    
 
               </div>
-            ))}
-          </div>
+                  ))}
+                </div>
+
+                {totalPaginas > 1 && (
+                  <div className="flex justify-center items-center gap-2 mt-10">
+                    <button
+                      onClick={() => setPaginaActual(p => p - 1)}
+                      disabled={paginaActual === 1}
+                      className="border-2 border-texto-oscuro bg-white px-4 py-2 font-black text-sm hover:bg-[#8A2D3B] hover:text-white hover:border-[#8A2D3B] transition disabled:opacity-30 disabled:cursor-not-allowed rounded"
+                    >
+                      &larr;
+                    </button>
+                    {Array.from({ length: totalPaginas }, (_, i) => i + 1).map(num => (
+                      <button
+                        key={num}
+                        onClick={() => setPaginaActual(num)}
+                        className={`border-2 px-4 py-2 font-black text-sm transition rounded ${
+                          paginaActual === num
+                            ? 'bg-[#8A2D3B] text-white border-[#8A2D3B]'
+                            : 'border-texto-oscuro bg-white hover:bg-gray-100'
+                        }`}
+                      >
+                        {num}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setPaginaActual(p => p + 1)}
+                      disabled={paginaActual === totalPaginas}
+                      className="border-2 border-texto-oscuro bg-white px-4 py-2 font-black text-sm hover:bg-[#8A2D3B] hover:text-white hover:border-[#8A2D3B] transition disabled:opacity-30 disabled:cursor-not-allowed rounded"
+                    >
+                      &rarr;
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </>
         )}
 
       {/* --- PANEL MODAL DE CANCELACIÓN --- */}
