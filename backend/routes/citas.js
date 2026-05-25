@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const supabase = require('../supabase');
 const validarSesion = require('../middleware/authMiddleware');
+const { enviarConfirmacionCita } = require('../services/emailService');
 
 // Función auxiliar para tiempo
 function calcularHoraFin(horaInicio, duracionMinutos) {
@@ -138,8 +139,8 @@ router.post('/', validarSesion, async (req, res) => {
     if (fecha < hoy) return res.status(400).json({ error: "No puedes reservar en el pasado" });
 
     const [u, s] = await Promise.all([
-        supabase.from('usuario').select('id_usuario').eq('id_usuario', id_usuario).single(),
-        supabase.from('servicio').select('duracion_minutos').eq('id_servicio', id_servicio).single()
+        supabase.from('usuario').select('id_usuario, email, nombre').eq('id_usuario', id_usuario).single(),
+        supabase.from('servicio').select('duracion_minutos, nombre, precio').eq('id_servicio', id_servicio).single()
     ]);
 
     if (!u.data || !s.data) return res.status(404).json({ error: "Usuario o Servicio no encontrado" });
@@ -155,6 +156,16 @@ router.post('/', validarSesion, async (req, res) => {
         .insert([{ fecha, hora_inicio, hora_fin: hFin, id_usuario, id_servicio, estado: 'CONFIRMADA' }]).select();
 
     if (error) return res.status(400).json({ error: error.message });
+
+    enviarConfirmacionCita({
+        emailCliente: u.data.email,
+        nombreServicio: s.data.nombre,
+        precio: s.data.precio,
+        fecha,
+        horaInicio: hora_inicio,
+        horaFin: hFin
+    }).catch(err => console.error('Error al enviar email de confirmación:', err.message));
+
     res.status(201).json(data[0]);
 });
 
