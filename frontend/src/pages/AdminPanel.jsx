@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { Link } from 'react-router-dom';
+import {
+  Chart as ChartJS,
+  CategoryScale, LinearScale, BarElement,
+  ArcElement, Title, Tooltip, Legend,
+} from 'chart.js';
+import { Bar, Doughnut } from 'react-chartjs-2';
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
 
 function AdminPanel() {
   const [clientes, setClientes] = useState([]);
@@ -10,6 +18,8 @@ function AdminPanel() {
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
   const [historialCitas, setHistorialCitas] = useState([]);
   const [cargandoHistorial, setCargandoHistorial] = useState(false);
+
+  const [statsData, setStatsData] = useState([]);
 
   // Estados para bloqueos de agenda
   const [modoBloqueo, setModoBloqueo] = useState('horas');
@@ -67,6 +77,12 @@ function AdminPanel() {
 
         if (errCitas) throw errCitas;
         setCitas(dataCitas || []);
+
+        const { data: dataStats, error: errStats } = await supabase
+          .from('cita')
+          .select('fecha, hora_inicio, estado, usuario(nombre), servicio(nombre, precio)')
+          .neq('estado', 'CANCELADA');
+        if (!errStats) setStatsData(dataStats || []);
       } catch (error) {
         console.error("Error cargando panel:", error.message);
       } finally {
@@ -261,6 +277,79 @@ function AdminPanel() {
     } finally {
       setCargandoBloqueo(false);
     }
+  };
+
+  // --- CÓMPUTOS PARA ESTADÍSTICAS ---
+  const ingresosLabels = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() - (5 - i));
+    return `${mesNombres[d.getMonth()].slice(0, 3)} ${d.getFullYear()}`;
+  });
+  const ingresosValues = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() - (5 - i));
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    return statsData
+      .filter(c => c.estado === 'COMPLETADA' && c.fecha?.startsWith(`${year}-${month}`))
+      .reduce((sum, c) => sum + Number(c.servicio?.precio || 0), 0);
+  });
+  const countServicios = statsData.reduce((acc, c) => {
+    const n = c.servicio?.nombre || 'Desconocido';
+    acc[n] = (acc[n] || 0) + 1;
+    return acc;
+  }, {});
+  const topServicios = Object.entries(countServicios).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const countHoras = statsData.reduce((acc, c) => {
+    const h = (c.hora_inicio?.slice(0, 2) || '00') + ':00';
+    acc[h] = (acc[h] || 0) + 1;
+    return acc;
+  }, {});
+  const horasOrdenadas = Object.entries(countHoras).sort((a, b) => a[0].localeCompare(b[0]));
+  const countClientes = statsData.reduce((acc, c) => {
+    const n = c.usuario?.nombre || 'Anónimo';
+    acc[n] = (acc[n] || 0) + 1;
+    return acc;
+  }, {});
+  const topClientes = Object.entries(countClientes).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  const chartIngresos = {
+    labels: ingresosLabels,
+    datasets: [{ label: 'Ingresos', data: ingresosValues, backgroundColor: '#8A2D3B', borderRadius: 6, hoverBackgroundColor: '#6b222d' }],
+  };
+  const chartServicios = {
+    labels: topServicios.map(([k]) => k),
+    datasets: [{ data: topServicios.map(([, v]) => v), backgroundColor: ['#8A2D3B', '#070707', '#B05060', '#4A4A4A', '#C9768A'], borderWidth: 0 }],
+  };
+  const chartHoras = {
+    labels: horasOrdenadas.map(([k]) => k),
+    datasets: [{ label: 'Citas', data: horasOrdenadas.map(([, v]) => v), backgroundColor: '#070707', borderRadius: 6, hoverBackgroundColor: '#333' }],
+  };
+  const chartClientes = {
+    labels: topClientes.map(([k]) => k),
+    datasets: [{ label: 'Citas', data: topClientes.map(([, v]) => v), backgroundColor: '#8A2D3B', borderRadius: 6, hoverBackgroundColor: '#6b222d' }],
+  };
+  const barOptsIngresos = {
+    responsive: true,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.y.toFixed(2)} €` } } },
+    scales: { y: { beginAtZero: true, grid: { color: '#f0f0f0' } }, x: { grid: { display: false } } },
+  };
+  const barOptsSimple = {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#f0f0f0' } }, x: { grid: { display: false } } },
+  };
+  const barOptsHorizontal = {
+    indexAxis: 'y',
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: { x: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#f0f0f0' } }, y: { grid: { display: false } } },
+  };
+  const doughnutOpts = {
+    responsive: true,
+    plugins: { legend: { position: 'bottom', labels: { font: { weight: 'bold' }, padding: 16 } } },
   };
 
   return (
@@ -458,6 +547,45 @@ function AdminPanel() {
             </div>
           </div>
         </div>
+
+        {/* Panel de Estadísticas */}
+        {statsData.length > 0 && (
+          <div className="md:col-span-2 bg-white p-6 shadow-md border-t-4 border-[#8A2D3B]">
+            <h2 className="text-2xl font-bold mb-6 uppercase tracking-tight">Estadísticas</h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+              {/* Ingresos por mes */}
+              <div className="md:col-span-2">
+                <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-3">Ingresos por Mes (€)</h3>
+                <Bar data={chartIngresos} options={barOptsIngresos} />
+              </div>
+
+              {/* Servicios más solicitados */}
+              <div>
+                <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-3">Servicios Más Solicitados</h3>
+                <div className="flex justify-center">
+                  <div className="w-full max-w-xs">
+                    <Doughnut data={chartServicios} options={doughnutOpts} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Horas punta */}
+              <div>
+                <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-3">Horas Punta</h3>
+                <Bar data={chartHoras} options={barOptsSimple} />
+              </div>
+
+              {/* Clientes más frecuentes */}
+              <div className="md:col-span-2">
+                <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-3">Clientes Más Frecuentes (Top 5)</h3>
+                <Bar data={chartClientes} options={barOptsHorizontal} />
+              </div>
+
+            </div>
+          </div>
+        )}
 
       </div>
 

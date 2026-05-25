@@ -15,6 +15,7 @@ function MisCitas() {
   const [comentario, setComentario] = useState('');      
   const [modalExito, setModalExito] = useState(false);
   const [errorMensaje, setErrorMensaje] = useState(null);
+  const [enviandoReview, setEnviandoReview] = useState(false);
 
   useEffect(() => {
     const cargarCitas = async () => {
@@ -80,10 +81,12 @@ function MisCitas() {
   };
   
   const enviarReview = async () => {
+    if (enviandoReview) return;
+    setEnviandoReview(true);
     try {
-      
+
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (!session) return;
 
       await api.post('/nueva-review', {
@@ -111,6 +114,8 @@ function MisCitas() {
       console.error(error);
       const mensajeBackend = error.response?.data?.error || "Error de conexión al enviar la reseña.";
       setErrorMensaje(mensajeBackend);
+    } finally {
+      setEnviandoReview(false);
     }
   };
 
@@ -283,11 +288,12 @@ function MisCitas() {
               >
                 Cerrar
               </button>
-              <button 
+              <button
                 onClick={enviarReview}
-                className="flex-1 bg-barber-azul text-white font-black uppercase text-sm py-3 border-4 border-barber-azul hover:opacity-90 transition"
+                disabled={enviandoReview}
+                className="flex-1 bg-barber-azul text-white font-black uppercase text-sm py-3 border-4 border-barber-azul hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Enviar Reseña
+                {enviandoReview ? 'Enviando...' : 'Enviar Reseña'}
               </button>
             </div>
           </div>

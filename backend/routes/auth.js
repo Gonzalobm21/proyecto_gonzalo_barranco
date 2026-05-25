@@ -3,7 +3,52 @@ const express = require('express');
 const router = express.Router();
 const supabase = require('../supabase');
 
-// Registro de usuario
+/**
+ * @swagger
+ * /auth/register:
+ *   post:
+ *     summary: Registrar un nuevo usuario
+ *     description: Crea una cuenta en Supabase Auth e inserta el perfil en la tabla `usuario` con rol `cliente`.
+ *     tags: [Autenticación]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [nombre, email, password]
+ *             properties:
+ *               nombre:
+ *                 type: string
+ *                 example: Juan García
+ *               telefono:
+ *                 type: string
+ *                 example: "600123456"
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: juan@email.com
+ *               password:
+ *                 type: string
+ *                 minLength: 6
+ *                 example: "mipass123"
+ *     responses:
+ *       201:
+ *         description: Usuario registrado correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 mensaje:    { type: string, example: "Usuario registrado con exito" }
+ *                 usuarioId:  { type: string, format: uuid }
+ *       400:
+ *         description: Datos inválidos, email ya registrado o contraseña corta
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.post('/register', async (req, res) => {
     const { email, password, nombre, telefono } = req.body;
 
@@ -28,11 +73,51 @@ router.post('/register', async (req, res) => {
     res.status(201).json({ mensaje: "Usuario registrado con exito", usuarioId: authData.user.id });
 });
 
-// Login de usuario
+/**
+ * @swagger
+ * /auth/login:
+ *   post:
+ *     summary: Iniciar sesión
+ *     description: Autentica al usuario con email y contraseña. Devuelve un token JWT que debe usarse como Bearer token en las rutas protegidas.
+ *     tags: [Autenticación]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: juan@email.com
+ *               password:
+ *                 type: string
+ *                 example: "mipass123"
+ *     responses:
+ *       200:
+ *         description: Login exitoso. Devuelve el token de acceso.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 mensaje:  { type: string, example: "Login exitoso" }
+ *                 token:    { type: string, description: "JWT de sesión para usar como Bearer token" }
+ *                 usuario:
+ *                   $ref: '#/components/schemas/Usuario'
+ *       401:
+ *         description: Credenciales incorrectas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.post('/login', async (req, res) => {
     const { email, password } = req.body;
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    
+
     if (error) return res.status(401).json({ error: "Credenciales invalidas" });
 
     res.json({

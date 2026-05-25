@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./swagger');
 const supabase = require('./supabase');
 
 const authRoutes = require('./routes/auth');
@@ -32,16 +34,74 @@ const generalLimiter = rateLimit({
 app.use(cors());
 app.use(express.json());
 
+// --- SWAGGER UI ---
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+    customSiteTitle: 'Essenzia Barber Shop — API Docs',
+    customCss: '.swagger-ui .topbar { background-color: #BB0A21; }',
+}));
+app.get('/api-docs.json', (_req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.send(swaggerSpec);
+});
+
 // --- CONEXION DE RUTAS CON SUS LÍMITES ESPECÍFICOS ---
 app.use('/auth', authLimiter, authRoutes);
 app.use('/citas', generalLimiter, citasRoutes);
 
+/**
+ * @swagger
+ * /:
+ *   get:
+ *     summary: Estado del servidor
+ *     description: Endpoint raíz que confirma que la API está operativa.
+ *     tags: [Servicios]
+ *     responses:
+ *       200:
+ *         description: API operativa
+ *         content:
+ *           text/plain:
+ *             schema:
+ *               type: string
+ *               example: API del proyecto
+ */
 app.get('/', (req, res) => {
     res.send('API del proyecto');
 });
 
 // --- RUTAS DE LA APLICACIÓN ---
 
+/**
+ * @swagger
+ * /test-servicios:
+ *   get:
+ *     summary: Obtener todos los servicios
+ *     description: Devuelve el catálogo completo de servicios de la barbería (nombre, precio, duración). No requiere autenticación.
+ *     tags: [Servicios]
+ *     responses:
+ *       200:
+ *         description: Lista de servicios disponibles
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Servicio'
+ *             example:
+ *               - id_servicio: 1
+ *                 nombre: "Corte de cabello"
+ *                 precio: 15.00
+ *                 duracion_minutos: 30
+ *               - id_servicio: 2
+ *                 nombre: "Corte + Barba"
+ *                 precio: 22.00
+ *                 duracion_minutos: 60
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 app.get('/test-servicios', async (req, res, next) => {
     try {
         const { data, error } = await supabase.from('servicio').select('*');
@@ -52,7 +112,75 @@ app.get('/test-servicios', async (req, res, next) => {
     }
 });
 
-// RUTA: Crear una cita
+/**
+ * @swagger
+ * /nueva-cita:
+ *   post:
+ *     summary: Crear una nueva cita (flujo principal del cliente)
+ *     description: |
+ *       Reserva una cita para un usuario. El backend:
+ *       1. Obtiene la duración del servicio desde la BD.
+ *       2. Calcula la `hora_fin` automáticamente.
+ *       3. Comprueba solapamiento con citas CONFIRMADAS del mismo día.
+ *       4. Si no hay conflicto, inserta la cita con estado `CONFIRMADA`.
+ *     tags: [Citas]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [id_servicio, fecha, hora_inicio, id_usuario]
+ *             properties:
+ *               id_servicio:
+ *                 type: integer
+ *                 example: 2
+ *               fecha:
+ *                 type: string
+ *                 format: date
+ *                 example: "2025-05-28"
+ *               hora_inicio:
+ *                 type: string
+ *                 example: "10:00"
+ *                 description: Formato HH:MM (sin segundos)
+ *               id_usuario:
+ *                 type: string
+ *                 format: uuid
+ *                 example: "a1b2c3d4-e5f6-..."
+ *     responses:
+ *       201:
+ *         description: Cita reservada correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 mensaje:
+ *                   type: string
+ *                   example: "Cita reservada correctamente"
+ *                 cita:
+ *                   $ref: '#/components/schemas/Cita'
+ *       400:
+ *         description: El servicio no existe
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       409:
+ *         description: Solapamiento — el horario ya está ocupado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *             example:
+ *               error: "El horario ya está ocupado por otra cita."
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 app.post('/nueva-cita', async (req, res, next) => {
     const { id_servicio, fecha, hora_inicio, id_usuario } = req.body;
 
@@ -121,7 +249,52 @@ app.post('/nueva-cita', async (req, res, next) => {
     }
 });
 
-// RUTA: Consultar horas ocupadas (Citas confirmadas + Bloqueos de agenda)
+/**
+ * @swagger
+ * /citas-ocupadas:
+ *   get:
+ *     summary: Horas ocupadas para una fecha
+ *     description: |
+ *       Devuelve los tramos horarios no disponibles para una fecha, combinando
+ *       citas CONFIRMADAS y bloqueos de agenda del administrador en una sola lista.
+ *       El frontend los trata de forma idéntica para deshabilitar los botones de hora.
+ *     tags: [Citas]
+ *     parameters:
+ *       - in: query
+ *         name: fecha
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Fecha a consultar (YYYY-MM-DD)
+ *         example: "2025-05-28"
+ *     responses:
+ *       200:
+ *         description: Lista unificada de tramos ocupados (citas + bloqueos)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/HoraOcupada'
+ *             example:
+ *               - hora_inicio: "10:00:00"
+ *                 hora_fin: "11:00:00"
+ *               - hora_inicio: "12:00:00"
+ *                 hora_fin: "12:30:00"
+ *       400:
+ *         description: Falta el parámetro `fecha`
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 app.get('/citas-ocupadas', async (req, res, next) => {
     const { fecha } = req.query;
 
@@ -157,7 +330,53 @@ app.get('/citas-ocupadas', async (req, res, next) => {
     }
 });
 
-// RUTA: Obtener las citas de un usuario específico (Para la página Mis Citas)
+/**
+ * @swagger
+ * /mis-citas/{id_usuario}:
+ *   get:
+ *     summary: Historial de citas de un usuario
+ *     description: |
+ *       Devuelve todas las citas del usuario ordenadas por fecha descendente.
+ *       Antes de responder, actualiza automáticamente a `COMPLETADA` todas las
+ *       citas `CONFIRMADAS` cuya fecha sea anterior a hoy.
+ *     tags: [Citas]
+ *     parameters:
+ *       - in: path
+ *         name: id_usuario
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: UUID del usuario
+ *         example: "a1b2c3d4-e5f6-..."
+ *     responses:
+ *       200:
+ *         description: Lista de citas del usuario con información del servicio incluida
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id_cita:       { type: string, format: uuid }
+ *                   fecha:         { type: string, format: date, example: "2025-05-28" }
+ *                   hora_inicio:   { type: string, example: "10:00:00" }
+ *                   hora_fin:      { type: string, example: "11:00:00" }
+ *                   estado:        { type: string, enum: [CONFIRMADA, COMPLETADA, CANCELADA] }
+ *                   resena_dejada: { type: boolean, example: false }
+ *                   servicio:
+ *                     type: object
+ *                     properties:
+ *                       nombre: { type: string, example: "Corte + Barba" }
+ *                       precio: { type: number, example: 22.00 }
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 app.get('/mis-citas/:id_usuario', async (req, res, next) => {
     const { id_usuario } = req.params;
 
@@ -200,7 +419,40 @@ app.get('/mis-citas/:id_usuario', async (req, res, next) => {
     }
 });
 
-// RUTA: Cancelar una cita
+/**
+ * @swagger
+ * /cancelar-cita/{id_cita}:
+ *   put:
+ *     summary: Cancelar una cita
+ *     description: Cambia el estado de la cita indicada a `CANCELADA`. Usado por el cliente desde la página "Mis Citas".
+ *     tags: [Citas]
+ *     parameters:
+ *       - in: path
+ *         name: id_cita
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: UUID de la cita a cancelar
+ *         example: "f9e8d7c6-..."
+ *     responses:
+ *       200:
+ *         description: Cita cancelada correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 mensaje:
+ *                   type: string
+ *                   example: "Cita cancelada con éxito"
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 app.put('/cancelar-cita/:id_cita', async (req, res, next) => {
     const { id_cita } = req.params;
 
@@ -217,7 +469,75 @@ app.put('/cancelar-cita/:id_cita', async (req, res, next) => {
     }
 });
 
-// RUTA: Publicar una reseña
+/**
+ * @swagger
+ * /nueva-review:
+ *   post:
+ *     summary: Publicar una reseña
+ *     description: |
+ *       Guarda la valoración (1-5 estrellas + comentario opcional) de un cliente sobre
+ *       un servicio completado. Tras insertar la reseña, marca `resena_dejada = true`
+ *       en la cita para impedir que se envíe una segunda reseña para la misma cita.
+ *     tags: [Reseñas]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [id_usuario, id_servicio, id_cita, calificacion]
+ *             properties:
+ *               id_usuario:
+ *                 type: string
+ *                 format: uuid
+ *                 example: "a1b2c3d4-..."
+ *               id_servicio:
+ *                 type: integer
+ *                 example: 2
+ *               id_cita:
+ *                 type: string
+ *                 format: uuid
+ *                 example: "f9e8d7c6-..."
+ *               calificacion:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 5
+ *                 example: 5
+ *               comentario:
+ *                 type: string
+ *                 example: "Excelente servicio, muy profesional."
+ *     responses:
+ *       201:
+ *         description: Reseña publicada correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 mensaje:
+ *                   type: string
+ *                   example: "¡Gracias por tu valoración!"
+ *       400:
+ *         description: Faltan datos obligatorios o calificación fuera de rango (1-5)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       409:
+ *         description: Esta cita ya tiene una reseña asociada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *             example:
+ *               error: "Ya has dejado una reseña para esta cita."
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 app.post('/nueva-review', async (req, res, next) => {
     const { id_usuario, id_servicio, id_cita, calificacion, comentario } = req.body;
 
@@ -231,7 +551,20 @@ app.post('/nueva-review', async (req, res, next) => {
     }
 
     try {
-        // 1. Guardar la reseña en la tabla 'review'
+        // 1. Comprobar que la cita no ha sido reseñada ya (evita duplicados)
+        const { data: citaCheck, error: checkError } = await supabase
+            .from('cita')
+            .select('resena_dejada')
+            .eq('id_cita', id_cita)
+            .single();
+
+        if (checkError) throw checkError;
+
+        if (citaCheck.resena_dejada) {
+            return res.status(409).json({ error: "Ya has dejado una reseña para esta cita." });
+        }
+
+        // 2. Guardar la reseña en la tabla 'review'
         const { error: insertError } = await supabase
             .from('review')
             .insert([{
@@ -243,7 +576,7 @@ app.post('/nueva-review', async (req, res, next) => {
 
         if (insertError) throw insertError;
 
-        // 2. Marcar la cita como reseñada en la tabla 'cita'
+        // 3. Marcar la cita como reseñada en la tabla 'cita'
         const { error: citaError } = await supabase
             .from('cita')
             .update({ resena_dejada: true })
@@ -258,7 +591,29 @@ app.post('/nueva-review', async (req, res, next) => {
     }
 });
 
-// RUTA: Obtener todas las reseñas (despues las muestro en el Home)
+/**
+ * @swagger
+ * /reviews:
+ *   get:
+ *     summary: Obtener todas las reseñas publicadas
+ *     description: Devuelve todas las reseñas ordenadas por fecha de creación descendente, incluyendo el nombre del cliente y del servicio. Sin autenticación, usado en la página de inicio.
+ *     tags: [Reseñas]
+ *     responses:
+ *       200:
+ *         description: Lista de reseñas con datos del cliente y del servicio
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Review'
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 app.get('/reviews', async (req, res, next) => {
     try {
         // Pedimos la reseña y le decimos a Supabase que salte a la tabla usuario y servicio para traer los nombres
@@ -291,4 +646,5 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Servidor corriendo en el puerto ${PORT}`);
+    console.log(`Swagger UI disponible en http://localhost:${PORT}/api-docs`);
 });

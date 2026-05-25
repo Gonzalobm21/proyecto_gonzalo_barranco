@@ -3,7 +3,8 @@ const express = require('express');
 const router = express.Router();
 const supabase = require('../supabase');
 const validarSesion = require('../middleware/authMiddleware');
-// Funcion auxiliar para tiempo
+
+// Función auxiliar para tiempo
 function calcularHoraFin(horaInicio, duracionMinutos) {
     const partes = horaInicio.split(':');
     const horas = parseInt(partes[0], 10);
@@ -15,7 +16,45 @@ function calcularHoraFin(horaInicio, duracionMinutos) {
     return `${horasStr}:${minutosStr}:00`;
 }
 
-// OBTENER TODAS LAS CITAS (Con detalles de cliente y servicio)
+/**
+ * @swagger
+ * /citas/detalladas:
+ *   get:
+ *     summary: Obtener todas las citas con detalles (Admin)
+ *     description: Devuelve todas las citas registradas en el sistema con información completa del cliente y del servicio. Uso exclusivo del administrador.
+ *     tags: [Admin]
+ *     responses:
+ *       200:
+ *         description: Lista completa de citas con joins de usuario y servicio
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id_cita:     { type: string, format: uuid }
+ *                   fecha:       { type: string, format: date, example: "2025-05-28" }
+ *                   hora_inicio: { type: string, example: "10:00:00" }
+ *                   hora_fin:    { type: string, example: "11:00:00" }
+ *                   estado:      { type: string, enum: [CONFIRMADA, COMPLETADA, CANCELADA] }
+ *                   usuario:
+ *                     type: object
+ *                     properties:
+ *                       nombre:   { type: string }
+ *                       telefono: { type: string }
+ *                   servicio:
+ *                     type: object
+ *                     properties:
+ *                       nombre: { type: string }
+ *                       precio: { type: number }
+ *       400:
+ *         description: Error al consultar la base de datos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.get('/detalladas', async (req, res) => {
     const { data, error } = await supabase
         .from('cita')
@@ -28,7 +67,63 @@ router.get('/detalladas', async (req, res) => {
     res.json(data);
 });
 
-// CREAR CITA 
+/**
+ * @swagger
+ * /citas:
+ *   post:
+ *     summary: Crear una nueva cita (requiere autenticación)
+ *     description: |
+ *       Reserva una cita para el usuario autenticado. El backend valida el formato de la hora,
+ *       comprueba que la fecha no sea pasada, y verifica que no exista solapamiento con otras
+ *       citas confirmadas en el mismo tramo horario.
+ *     tags: [Citas]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [fecha, hora_inicio, id_servicio]
+ *             properties:
+ *               fecha:
+ *                 type: string
+ *                 format: date
+ *                 example: "2025-05-28"
+ *               hora_inicio:
+ *                 type: string
+ *                 pattern: '^([01]\d|2[0-3]):([0-5]\d)$'
+ *                 example: "10:00"
+ *               id_servicio:
+ *                 type: integer
+ *                 example: 2
+ *     responses:
+ *       201:
+ *         description: Cita creada correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Cita'
+ *       400:
+ *         description: Campos inválidos, fecha pasada, o solapamiento detectado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: Token no proporcionado o sesión inválida
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Usuario o servicio no encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.post('/', validarSesion, async (req, res) => {
     const { fecha, hora_inicio, id_servicio } = req.body;
     const id_usuario = req.usuarioLogueado.id;
@@ -63,7 +158,48 @@ router.post('/', validarSesion, async (req, res) => {
     res.status(201).json(data[0]);
 });
 
-// ACTUALIZAR ESTADO (PATCH)
+/**
+ * @swagger
+ * /citas/{id}:
+ *   patch:
+ *     summary: Actualizar el estado de una cita
+ *     description: Cambia el estado de una cita a CONFIRMADA, COMPLETADA o CANCELADA. Usado principalmente por el administrador para marcar citas como completadas.
+ *     tags: [Admin]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: UUID de la cita a actualizar
+ *         example: "f9e8d7c6-..."
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [nuevo_estado]
+ *             properties:
+ *               nuevo_estado:
+ *                 type: string
+ *                 enum: [CONFIRMADA, COMPLETADA, CANCELADA]
+ *                 example: COMPLETADA
+ *     responses:
+ *       200:
+ *         description: Cita actualizada correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Cita'
+ *       400:
+ *         description: Estado no válido o error de base de datos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.patch('/:id', async (req, res) => {
     const { id } = req.params;
     const { nuevo_estado } = req.body;
