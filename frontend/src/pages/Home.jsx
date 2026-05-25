@@ -31,18 +31,26 @@ function Home() {
 
   // 2. Estado para el índice del carrusel
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [slideOpacity, setSlideOpacity] = useState(1);
 
-  // 3. Funciones de navegación
+  // 3. Función de navegación con fade
+  const goToSlide = (newIndex) => {
+    if (newIndex === currentIndex) return;
+    setSlideOpacity(0);
+    setTimeout(() => {
+      setCurrentIndex(newIndex);
+      setSlideOpacity(1);
+    }, 200);
+  };
+
   const prevSlide = () => {
-    const isFirstSlide = currentIndex === 0;
-    const newIndex = isFirstSlide ? imagenesGaleria.length - 1 : currentIndex - 1;
-    setCurrentIndex(newIndex);
+    const newIndex = currentIndex === 0 ? imagenesGaleria.length - 1 : currentIndex - 1;
+    goToSlide(newIndex);
   };
 
   const nextSlide = () => {
-    const isLastSlide = currentIndex === imagenesGaleria.length - 1;
-    const newIndex = isLastSlide ? 0 : currentIndex + 1;
-    setCurrentIndex(newIndex);
+    const newIndex = currentIndex === imagenesGaleria.length - 1 ? 0 : currentIndex + 1;
+    goToSlide(newIndex);
   };
 
   useEffect(() => {
@@ -106,32 +114,34 @@ function Home() {
           
           <h2 className="text-4xl font-black mb-8 text-[#8A2D3B] text-center uppercase tracking-wide">Galería</h2>
 
-          <div className="max-w-[1000px] mx-auto h-[550px] w-full relative group">
-            <div
-              style={{ backgroundImage: `url(${imagenesGaleria[currentIndex]})` }}
-              className="w-full h-full rounded-xl bg-center bg-cover duration-500 border-4 border-[#070707] shadow-[10px_10px_0px_0px_rgba(7,7,7,1)]"
-            ></div>
-            <button 
-              onClick={prevSlide}
-              className="hidden group-hover:flex absolute top-[50%] -translate-y-[-50%] left-4 z-10 items-center justify-center w-12 h-12 bg-white/90 text-[#070707] rounded-full border-2 border-[#070707] shadow-[4px_4px_0px_0px_rgba(7,7,7,1)] hover:bg-[#8A2D3B] hover:text-white transition-all active:translate-y-[-45%] active:shadow-none"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <button 
-              onClick={nextSlide}
-              className="hidden group-hover:flex absolute top-[50%] -translate-y-[-50%] right-4 z-10 items-center justify-center w-12 h-12 bg-white/90 text-[#070707] rounded-full border-2 border-[#070707] shadow-[4px_4px_0px_0px_rgba(7,7,7,1)] hover:bg-[#8A2D3B] hover:text-white transition-all active:translate-y-[-45%] active:shadow-none"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-            <div className="flex justify-center mt-8 gap-3">
+          <div className="max-w-[1000px] mx-auto">
+            <div className="h-137.5 w-full relative group">
+              <div
+                style={{ backgroundImage: `url(${imagenesGaleria[currentIndex]})`, opacity: slideOpacity, transition: 'opacity 0.2s ease' }}
+                className="w-full h-full rounded-xl bg-center bg-cover border-4 border-texto-oscuro shadow-[10px_10px_0px_0px_rgba(7,7,7,1)]"
+              />
+              <button
+                onClick={prevSlide}
+                className="hidden group-hover:flex absolute top-1/2 -translate-y-1/2 left-4 z-10 items-center justify-center w-12 h-12 bg-white/90 text-texto-oscuro rounded-full border-2 border-texto-oscuro shadow-[4px_4px_0px_0px_rgba(7,7,7,1)] hover:bg-[#8A2D3B] hover:text-white transition-all"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <button
+                onClick={nextSlide}
+                className="hidden group-hover:flex absolute top-1/2 -translate-y-1/2 right-4 z-10 items-center justify-center w-12 h-12 bg-white/90 text-texto-oscuro rounded-full border-2 border-texto-oscuro shadow-[4px_4px_0px_0px_rgba(7,7,7,1)] hover:bg-[#8A2D3B] hover:text-white transition-all"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex justify-center mt-6 gap-3">
               {imagenesGaleria.map((_, slideIndex) => (
                 <button
                   key={slideIndex}
-                  onClick={() => setCurrentIndex(slideIndex)}
+                  onClick={() => goToSlide(slideIndex)}
                   className={`w-3 h-3 rounded-full border-2 border-[#070707] transition-all ${
                     currentIndex === slideIndex ? 'bg-[#8A2D3B] scale-125' : 'bg-white'
                   }`}
