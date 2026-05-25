@@ -321,11 +321,11 @@ function AdminPanel() {
   };
   const chartServicios = {
     labels: topServicios.map(([k]) => k),
-    datasets: [{ data: topServicios.map(([, v]) => v), backgroundColor: ['#8A2D3B', '#070707', '#B05060', '#4A4A4A', '#C9768A'], borderWidth: 0 }],
+    datasets: [{ data: topServicios.map(([, v]) => v), backgroundColor: ['#8A2D3B', '#3F88C5', '#B05060', '#2d6a9f', '#C9768A'], borderWidth: 0 }],
   };
   const chartHoras = {
     labels: horasOrdenadas.map(([k]) => k),
-    datasets: [{ label: 'Citas', data: horasOrdenadas.map(([, v]) => v), backgroundColor: '#070707', borderRadius: 6, hoverBackgroundColor: '#333' }],
+    datasets: [{ label: 'Citas', data: horasOrdenadas.map(([, v]) => v), backgroundColor: '#3F88C5', borderRadius: 6, hoverBackgroundColor: '#2d6a9f' }],
   };
   const chartClientes = {
     labels: topClientes.map(([k]) => k),
@@ -333,23 +333,27 @@ function AdminPanel() {
   };
   const barOptsIngresos = {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.y.toFixed(2)} €` } } },
     scales: { y: { beginAtZero: true, grid: { color: '#f0f0f0' } }, x: { grid: { display: false } } },
   };
   const barOptsSimple = {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: { legend: { display: false } },
     scales: { y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#f0f0f0' } }, x: { grid: { display: false } } },
   };
   const barOptsHorizontal = {
     indexAxis: 'y',
     responsive: true,
+    maintainAspectRatio: false,
     plugins: { legend: { display: false } },
     scales: { x: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#f0f0f0' } }, y: { grid: { display: false } } },
   };
   const doughnutOpts = {
     responsive: true,
-    plugins: { legend: { position: 'bottom', labels: { font: { weight: 'bold' }, padding: 16 } } },
+    maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom', labels: { font: { weight: 'bold' }, padding: 12 } } },
   };
 
   return (
@@ -550,22 +554,24 @@ function AdminPanel() {
 
         {/* Panel de Estadísticas */}
         {statsData.length > 0 && (
-          <div className="md:col-span-2 bg-white p-6 shadow-md border-t-4 border-[#8A2D3B]">
-            <h2 className="text-2xl font-bold mb-6 uppercase tracking-tight">Estadísticas</h2>
+          <div className="md:col-span-2 bg-white p-4 shadow-md border-t-4 border-[#8A2D3B]">
+            <h2 className="text-xl font-bold mb-4 uppercase tracking-tight">Estadísticas</h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
               {/* Ingresos por mes */}
               <div className="md:col-span-2">
-                <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-3">Ingresos por Mes (€)</h3>
-                <Bar data={chartIngresos} options={barOptsIngresos} />
+                <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Ingresos por Mes (€)</h3>
+                <div className="h-36">
+                  <Bar data={chartIngresos} options={barOptsIngresos} />
+                </div>
               </div>
 
               {/* Servicios más solicitados */}
               <div>
-                <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-3">Servicios Más Solicitados</h3>
-                <div className="flex justify-center">
-                  <div className="w-full max-w-xs">
+                <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Servicios Más Solicitados</h3>
+                <div className="h-44 flex justify-center">
+                  <div className="w-full max-w-50">
                     <Doughnut data={chartServicios} options={doughnutOpts} />
                   </div>
                 </div>
@@ -573,14 +579,18 @@ function AdminPanel() {
 
               {/* Horas punta */}
               <div>
-                <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-3">Horas Punta</h3>
-                <Bar data={chartHoras} options={barOptsSimple} />
+                <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Horas Punta</h3>
+                <div className="h-44">
+                  <Bar data={chartHoras} options={barOptsSimple} />
+                </div>
               </div>
 
               {/* Clientes más frecuentes */}
               <div className="md:col-span-2">
-                <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-3">Clientes Más Frecuentes (Top 5)</h3>
-                <Bar data={chartClientes} options={barOptsHorizontal} />
+                <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Clientes Más Frecuentes (Top 5)</h3>
+                <div className="h-32">
+                  <Bar data={chartClientes} options={barOptsHorizontal} />
+                </div>
               </div>
 
             </div>
