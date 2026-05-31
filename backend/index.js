@@ -7,6 +7,7 @@ const supabase = require('./supabase');
 
 const authRoutes = require('./routes/auth');
 const citasRoutes = require('./routes/citas');
+const { enviarConfirmacionCita } = require('./services/emailService');
 
 const app = express();
 
@@ -185,10 +186,10 @@ app.post('/nueva-cita', async (req, res, next) => {
     const { id_servicio, fecha, hora_inicio, id_usuario } = req.body;
 
     try {
-        // 1. Buscar la duración del servicio en la BD
+        // 1. Buscar duración, nombre y precio del servicio en la BD
         const { data: servicio, error: errorServicio } = await supabase
             .from('servicio')
-            .select('duracion_minutos')
+            .select('duracion_minutos, nombre, precio')
             .eq('id_servicio', id_servicio)
             .single();
 
@@ -238,10 +239,28 @@ app.post('/nueva-cita', async (req, res, next) => {
 
         if (errorInsert) throw errorInsert;
 
-        // Si todo ha ido bien
-        res.status(201).json({ 
-            mensaje: "Cita reservada correctamente", 
-            cita: nuevaCita[0] 
+        // 5. ENVIAR EMAIL DE CONFIRMACIÓN (sin bloquear la respuesta)
+        const { data: usuario } = await supabase
+            .from('usuario')
+            .select('email, nombre')
+            .eq('id_usuario', id_usuario)
+            .single();
+
+        if (usuario?.email) {
+            enviarConfirmacionCita({
+                emailCliente: usuario.email,
+                nombreCliente: usuario.nombre,
+                fecha,
+                horaInicio: hora_inicio_db,
+                horaFin: hora_fin_db,
+                nombreServicio: servicio.nombre,
+                precio: servicio.precio
+            }).catch(err => console.error('Error al enviar email de confirmación:', err.message));
+        }
+
+        res.status(201).json({
+            mensaje: "Cita reservada correctamente",
+            cita: nuevaCita[0]
         });
 
     } catch (err) {
