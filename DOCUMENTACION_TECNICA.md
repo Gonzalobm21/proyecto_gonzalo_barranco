@@ -497,6 +497,9 @@ app.listen(PORT, () => console.log(`Servidor en puerto ${PORT}`));
 | cors | — | Habilita peticiones cross-origin desde el frontend |
 | express-rate-limit | 8.3.2 | Limita intentos de login (protección brute-force) |
 | dotenv | — | Carga variables de entorno desde `.env` |
+| nodemailer | — | Envío de emails de confirmación de cita vía Gmail SMTP |
+| swagger-jsdoc | — | Genera el spec OpenAPI 3.0 desde comentarios JSDoc |
+| swagger-ui-express | — | Sirve la UI interactiva de Swagger en `/api-docs` |
 
 ## 4.4 Backend-as-a-Service: Supabase
 
@@ -1701,7 +1704,266 @@ Si se superan los límites, el servidor devuelve un código HTTP `429 Too Many R
 
 ---
 
-## 6.8 Documentación de la API con Swagger
+## 6.8 Optimización del Carrusel de Imágenes (Home)
+
+### Conversión de imágenes a WebP
+
+El carrusel de la página de inicio utilizaba originalmente imágenes en formato `.png`. Tras analizar el impacto en el tiempo de carga, todas las fotografías se convirtieron al formato **WebP**, un formato moderno de imagen desarrollado por Google que ofrece una compresión superior manteniendo calidad visual equivalente.
+
+| Métrica | PNG (original) | WebP (optimizado) |
+|---------|---------------|-------------------|
+| Tamaño medio por imagen | ~200-400 KB | ~35-55 KB |
+| Reducción | — | ~80% menos peso |
+| Compatibilidad | Universal | Todos los navegadores modernos |
+
+El cambio se refleja en los imports de `Home.jsx`:
+
+```jsx
+// Antes: imágenes PNG pesadas
+import foto1 from '../assets/foto1.png';
+
+// Después: imágenes WebP ligeras
+import foto1 from '../assets/foto1.webp';
+```
+
+### Animación de transición Fade
+
+Se implementó una transición de **fade** (desvanecimiento) entre slides en lugar de un corte abrupto. La lógica usa dos estados de React coordinados: `currentIndex` (qué imagen se muestra) y `slideOpacity` (opacidad de la imagen):
+
+```jsx
+// frontend/src/pages/Home.jsx
+const [slideOpacity, setSlideOpacity] = useState(1);
+
+const goToSlide = (newIndex) => {
+  if (newIndex === currentIndex) return;
+  setSlideOpacity(0);                          // 1. Fade out (opacity: 0)
+  setTimeout(() => {
+    setCurrentIndex(newIndex);                 // 2. Cambiar imagen
+    setSlideOpacity(1);                        // 3. Fade in (opacity: 1)
+  }, 200);                                     // Duración del fade: 200ms
+};
+```
+
+La opacidad se aplica mediante `style` inline en el div de la imagen:
+
+```jsx
+<div
+  style={{
+    backgroundImage: `url(${imagenesGaleria[currentIndex]})`,
+    opacity: slideOpacity,
+    transition: 'opacity 0.2s ease'
+  }}
+  className="w-full h-full rounded-xl bg-center bg-cover border-4 border-texto-oscuro"
+/>
+```
+
+### Botones de navegación con revelado por hover
+
+Los botones anterior/siguiente se ocultaron por defecto y ahora solo se muestran al pasar el ratón sobre la imagen, gracias al patrón `group` / `group-hover` de Tailwind. Además, se rediseñaron como botones circulares con iconos SVG:
+
+```jsx
+{/* El contenedor tiene la clase "group" para que los hijos reaccionen al hover */}
+<div className="h-137.5 w-full relative group">
+
+  {/* Botón izquierdo: oculto por defecto, visible al hacer hover en el group */}
+  <button
+    onClick={prevSlide}
+    className="hidden group-hover:flex absolute top-1/2 -translate-y-1/2 left-4 z-10
+               items-center justify-center w-12 h-12 bg-white/90 rounded-full
+               border-2 border-texto-oscuro shadow-[4px_4px_0px_0px_rgba(7,7,7,1)]
+               hover:bg-[#8A2D3B] hover:text-white transition-all"
+  >
+    <svg ...>  {/* Icono de chevron izquierdo */} </svg>
+  </button>
+
+  {/* ... imagen ... */}
+
+  {/* Botón derecho: misma lógica */}
+  <button onClick={nextSlide} className="hidden group-hover:flex ...">
+    <svg ...>  {/* Icono de chevron derecho */} </svg>
+  </button>
+</div>
+```
+
+Los puntos indicadores también recibieron una mejora visual: el punto activo se agranda (`scale-125`) y cambia de color a granate:
+
+```jsx
+<button
+  className={`w-3 h-3 rounded-full border-2 border-[#070707] transition-all ${
+    currentIndex === slideIndex ? 'bg-[#8A2D3B] scale-125' : 'bg-white'
+  }`}
+/>
+```
+
+---
+
+## 6.9 Filtros, Ordenación y Paginación en "Mis Citas"
+
+La página de historial de citas recibió una mejora sustancial en su usabilidad. Originalmente mostraba todas las citas como una lista plana sin ninguna opción de filtrado ni navegación. Con esta actualización, el usuario puede segmentar y organizar su historial de forma precisa.
+
+### Nuevos estados de control
+
+```jsx
+// frontend/src/pages/MisCitas.jsx — nuevos estados añadidos
+const [orden, setOrden]               = useState('reciente');   // Criterio de ordenación
+const [filtroServicio, setFiltroServicio] = useState('');        // Filtro por tipo de servicio
+const [filtroEstado, setFiltroEstado]   = useState('');         // Filtro por estado
+const [paginaActual, setPaginaActual]   = useState(1);          // Página actual
+const CITAS_POR_PAGINA = 10;                                    // Citas visibles por página
+```
+
+### Lógica de filtrado, ordenación y paginación
+
+Todo el procesamiento se realiza en el frontend, sobre los datos ya cargados, sin peticiones adicionales al servidor. Esto garantiza una respuesta instantánea al cambiar cualquier filtro:
+
+```jsx
+// 1. Extraer lista de servicios únicos para el selector (calculado una sola vez)
+const serviciosUnicos = [
+  ...new Set(citas.map(c => c.servicio?.nombre).filter(Boolean))
+].sort();
+
+// 2. Aplicar filtros y ordenación en cadena
+const citasFiltradas = citas
+  .filter(c => !filtroServicio || c.servicio?.nombre === filtroServicio)
+  .filter(c => !filtroEstado   || c.estado === filtroEstado)
+  .sort((a, b) => {
+    switch (orden) {
+      case 'antiguo':  return a.fecha.localeCompare(b.fecha);
+      case 'servicio': return a.servicio?.nombre.localeCompare(b.servicio?.nombre);
+      case 'estado':   return a.estado.localeCompare(b.estado);
+      default:         return b.fecha.localeCompare(a.fecha);  // 'reciente'
+    }
+  });
+
+// 3. Calcular páginas y recortar el array para la página actual
+const totalPaginas = Math.ceil(citasFiltradas.length / CITAS_POR_PAGINA);
+const citasPaginadas = citasFiltradas.slice(
+  (paginaActual - 1) * CITAS_POR_PAGINA,
+  paginaActual * CITAS_POR_PAGINA
+);
+```
+
+Un detalle importante: cada vez que el usuario cambia un filtro, la página se resetea a 1 automáticamente para evitar mostrar una página vacía:
+
+```jsx
+// Wrapper que aplica cualquier filtro y vuelve a la primera página
+const aplicarFiltro = (setter) => (valor) => {
+  setter(valor);
+  setPaginaActual(1);
+};
+```
+
+### Barra de filtros en la interfaz
+
+```
+┌──────────────────────────────────────────────────────┐
+│  Ordenar y filtrar:                                  │
+│  [Fecha: más reciente ▼]  [Todos los servicios ▼]    │
+│  [Todos los estados ▼]    [Limpiar filtros]           │
+└──────────────────────────────────────────────────────┘
+  Mostrando 1–10 de 23 citas
+```
+
+El botón **"Limpiar filtros"** solo se muestra si hay algún filtro activo (`hayFiltrosActivos`), lo que mantiene la interfaz limpia cuando no se usan:
+
+```jsx
+const hayFiltrosActivos = filtroServicio || filtroEstado || orden !== 'reciente';
+
+{hayFiltrosActivos && (
+  <button onClick={() => {
+    setOrden('reciente');
+    setFiltroServicio('');
+    setFiltroEstado('');
+    setPaginaActual(1);
+  }}>
+    Limpiar filtros
+  </button>
+)}
+```
+
+### Mejoras visuales en las tarjetas
+
+Las citas canceladas se muestran ahora con reducción de opacidad y escala de grises, comunicando visualmente su estado inactivo sin eliminarlas de la vista:
+
+```jsx
+<div className={`bg-white border-4 border-texto-oscuro p-6 rounded-xl ...
+  ${cita.estado === 'CANCELADA' ? 'opacity-70 grayscale' : ''}
+`}>
+```
+
+---
+
+## 6.10 Refinamiento del Panel de Estadísticas (AdminPanel)
+
+El panel de estadísticas del administrador, implementado con **Chart.js** a través del wrapper `react-chartjs-2`, recibió una serie de ajustes de presentación para mejorar su legibilidad y consistencia visual.
+
+### Problema: gráficas sin altura controlada
+
+Antes de la mejora, los gráficos no tenían una altura CSS explícita. Con `maintainAspectRatio: true` (valor por defecto), Chart.js calculaba la altura automáticamente en función del ancho del contenedor, generando gráficas demasiado altas en pantallas anchas y tamaños inconsistentes entre ellas.
+
+### Solución: alturas fijas con `maintainAspectRatio: false`
+
+Cada gráfico se envolvió en un `<div>` con altura fija en Tailwind y se desactivó el ratio automático en las opciones de Chart.js:
+
+```jsx
+// Antes: la gráfica tomaba la altura que quisiera
+<Bar data={chartIngresos} options={barOptsIngresos} />
+
+// Después: contenedor con altura controlada + Chart.js respeta ese contenedor
+<div className="h-36">
+  <Bar data={chartIngresos} options={barOptsIngresos} />
+</div>
+```
+
+```javascript
+// Opciones de Chart.js actualizadas
+const barOptsIngresos = {
+  responsive: true,
+  maintainAspectRatio: false,   // ← clave: respeta la altura del div padre
+  plugins: { legend: { display: false } },
+  scales: { y: { beginAtZero: true } },
+};
+```
+
+Las alturas asignadas a cada gráfica son:
+
+| Gráfica | Altura Tailwind | Descripción |
+|---------|----------------|-------------|
+| Ingresos por mes | `h-36` (144px) | Bar chart horizontal, necesita espacio |
+| Servicios más solicitados | `h-44` (176px) | Doughnut chart centrado |
+| Horas punta | `h-44` (176px) | Bar chart de horas del día |
+| Clientes más frecuentes | `h-32` (128px) | Bar chart horizontal, pocos datos |
+
+### Actualización de la paleta de colores
+
+Se sustituyó el negro (`#070707`) por el **azul acero de la marca** (`#3F88C5`) en las gráficas de barras, creando mayor consistencia con la paleta cromática general de la aplicación:
+
+```javascript
+// Gráfica de horas punta — antes negro, ahora azul corporativo
+const chartHoras = {
+  datasets: [{
+    backgroundColor: '#3F88C5',         // Azul acero
+    hoverBackgroundColor: '#2d6a9f',    // Azul más oscuro al hacer hover
+  }]
+};
+
+// Gráfica de servicios (doughnut) — paleta actualizada
+const chartServicios = {
+  datasets: [{
+    backgroundColor: [
+      '#8A2D3B',  // Granate — primer servicio
+      '#3F88C5',  // Azul acero — segundo servicio (antes negro)
+      '#B05060',  // Granate claro
+      '#2d6a9f',  // Azul oscuro
+      '#C9768A',  // Rosa palo
+    ]
+  }]
+};
+```
+
+---
+
+## 6.11 Documentación de la API con Swagger
 
 ### ¿Qué es Swagger / OpenAPI?
 
@@ -2390,6 +2652,59 @@ Esta pestaña permite al administrador bloquear su disponibilidad de dos formas:
 ╚══════════════════════════════════════════════════════════════╝
 ```
 
+### Pestaña 4: Panel de Estadísticas
+
+El panel de estadísticas aparece automáticamente en la parte inferior del Admin Panel cuando existen citas registradas en el sistema. No requiere ninguna acción por parte del administrador: los datos se calculan en tiempo real a partir del historial completo de citas.
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║  ESTADÍSTICAS                                                ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║  INGRESOS POR MES (€)                                        ║
+║  ┌────────────────────────────────────────────────────────┐  ║
+║  │   █                                                    │  ║
+║  │   █      █                                             │  ║
+║  │   █      █         █                                   │  ║
+║  │  Mar    Abr        May                                  │  ║
+║  └────────────────────────────────────────────────────────┘  ║
+║                                                              ║
+╠═════════════════════════╦════════════════════════════════════╣
+║  SERVICIOS SOLICITADOS  ║  HORAS PUNTA                       ║
+║                         ║                                    ║
+║     ╭──────╮            ║  │ █                               ║
+║    ╱ 40%   ╲            ║  │ █   █                           ║
+║   │  Corte  │           ║  │ █   █   █                       ║
+║    ╲ 60%   ╱            ║  └─────────────────                ║
+║     ╰──────╯            ║   10h  11h  12h ...                ║
+║  ● Corte + Barba        ║                                    ║
+║  ● Corte de cabello     ║                                    ║
+╠═════════════════════════╩════════════════════════════════════╣
+║  CLIENTES MÁS FRECUENTES (TOP 5)                             ║
+║  Juan García    ████████████████████  8 citas                ║
+║  Ana Martínez   ████████████         5 citas                 ║
+║  Carlos López   ████████             4 citas                 ║
+╚══════════════════════════════════════════════════════════════╝
+```
+
+**Gráficas disponibles:**
+
+| Gráfica | Tipo | Qué muestra |
+|---------|------|-------------|
+| **Ingresos por Mes** | Barras verticales | Suma de ingresos (€) de las citas COMPLETADAS, agrupadas por mes |
+| **Servicios Más Solicitados** | Doughnut (rosco) | Distribución porcentual de citas por tipo de servicio |
+| **Horas Punta** | Barras verticales | Número de citas agrupadas por hora de inicio, para identificar los momentos de mayor demanda |
+| **Clientes Más Frecuentes** | Barras horizontales | Top 5 de clientes ordenados por número de citas totales |
+
+**Cómo interpretar las gráficas:**
+
+- **Ingresos por mes:** Permite identificar los meses de mayor facturación y detectar tendencias estacionales. Solo incluye citas en estado COMPLETADA.
+- **Servicios más solicitados:** El tamaño de cada sector del doughnut es proporcional al número de reservas de ese servicio. Útil para decidir si ampliar o ajustar el catálogo.
+- **Horas punta:** Muestra en qué franjas horarias se concentran más citas. Si hay una hora con muchas reservas, el administrador puede valorar ajustar los descansos o ampliar la disponibilidad en esa franja.
+- **Clientes más frecuentes:** Identifica los clientes más fieles del negocio, lo que puede ser útil para programas de fidelización o comunicaciones personalizadas.
+
+> **Nota:** El panel de estadísticas solo es visible si hay datos suficientes. Si no hay citas completadas registradas, la sección no aparece.
+
 ---
 
 # 9. CONCLUSIONES Y FUTURAS LÍNEAS DE MEJORA
@@ -2408,6 +2723,7 @@ Todos los objetivos específicos planteados en la fase de análisis han sido cum
 - ✅ El sistema de autenticación diferencia correctamente los roles de cliente y administrador.
 - ✅ El panel de administración ofrece control total sobre la agenda.
 - ✅ El sistema de reseñas fomenta la confianza y la fidelización.
+- ✅ El panel de estadísticas ofrece al administrador gráficos de ingresos, servicios, horas punta y clientes más frecuentes.
 - ✅ La interfaz es completamente responsiva en todos los dispositivos probados.
 - ✅ La aplicación está desplegada en producción y es accesible desde cualquier lugar.
 
@@ -2420,6 +2736,8 @@ Todos los objetivos específicos planteados en la fase de análisis han sido cum
 **El desarrollo asíncrono en JavaScript:** Trabajar con `async/await`, promesas, y la naturaleza no bloqueante de Node.js ha consolidado la comprensión de cómo funcionan las operaciones asíncronas. Los errores de condición de carrera detectados durante las pruebas (como el Bug #3 del token de Axios) fueron lecciones especialmente valiosas.
 
 **Tailwind CSS como filosofía de diseño:** Pasar de escribir CSS clásico a usar clases de utilidad fue inicialmente contraintuitivo, pero la productividad ganada y la consistencia visual obtenida justifican completamente el cambio de enfoque.
+
+**Visualización de datos con Chart.js:** La integración de gráficos interactivos en el panel de administración mediante `react-chartjs-2` abrió una nueva dimensión del desarrollo: transformar datos brutos de la base de datos en representaciones visuales significativas (gráficas de barras, doughnut) que permiten al administrador tomar decisiones informadas sobre su negocio.
 
 **Git como herramienta de trabajo diario:** El control de versiones dejó de ser un requisito externo para convertirse en una herramienta genuinamente útil: la posibilidad de revertir cambios con confianza y de tener el historial completo del proyecto es inapreciable.
 
@@ -2447,24 +2765,19 @@ Añadir un programa de puntos: por cada servicio completado, el cliente acumula 
 **4. Ampliación del catálogo de servicios**
 Extender el modelo de negocio más allá de la barbería: servicios de belleza (manicura, pedicura), masajes, fisioterapia o servicios de estética. El modelo de datos actual podría adaptarse con la adición de categorías de servicio.
 
-**5. Reserva para múltiples personas**
-Permitir a un cliente reservar citas para varias personas en una misma sesión, útil para grupos o familias.
 
 ### Mejoras técnicas
 
-**6. Panel de estadísticas para el administrador**
-Añadir gráficos y métricas en el panel de administración: ingresos por mes, servicios más solicitados, horas punta, clientes más frecuentes. Se podría implementar con librerías como **Chart.js** o **Recharts**.
-
-**7. Aplicación móvil nativa**
+**6. Aplicación móvil nativa**
 Convertir el frontend en una aplicación móvil con **React Native**, aprovechando la mayor parte del código y la lógica de negocio ya existentes.
 
-**8. Autenticación con redes sociales**
+**7. Autenticación con redes sociales**
 Añadir la posibilidad de registrarse e iniciar sesión con Google o Apple, reduciendo la fricción del proceso de registro. Supabase ofrece esta funcionalidad de forma nativa mediante OAuth.
 
-**9. Pruebas automatizadas**
+**8. Pruebas automatizadas**
 Implementar una suite de pruebas automatizadas con **Vitest** (para el frontend) y **Jest** + **Supertest** (para el backend), garantizando que cada nueva funcionalidad no rompe las existentes y facilitando el mantenimiento a largo plazo.
 
-**10. Sistema de caché**
+**9. Sistema de caché**
 Para reducir el número de consultas a la base de datos, implementar una capa de caché con **Redis** o la caché nativa de Supabase, mejorando el tiempo de respuesta de los endpoints más consultados.
 
 ---
