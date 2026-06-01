@@ -240,13 +240,18 @@ app.post('/nueva-cita', async (req, res, next) => {
         if (errorInsert) throw errorInsert;
 
         // 5. ENVIAR EMAIL DE CONFIRMACIÓN (sin bloquear la respuesta)
-        const { data: usuario } = await supabase
+        const { data: usuario, error: errorUsuario } = await supabase
             .from('usuario')
             .select('email, nombre')
             .eq('id_usuario', id_usuario)
             .single();
 
+        console.log('[EMAIL] id_usuario:', id_usuario);
+        console.log('[EMAIL] usuario encontrado:', usuario);
+        console.log('[EMAIL] error al buscar usuario:', errorUsuario);
+
         if (usuario?.email) {
+            console.log('[EMAIL] Enviando a:', usuario.email);
             enviarConfirmacionCita({
                 emailCliente: usuario.email,
                 nombreCliente: usuario.nombre,
@@ -255,7 +260,10 @@ app.post('/nueva-cita', async (req, res, next) => {
                 horaFin: hora_fin_db,
                 nombreServicio: servicio.nombre,
                 precio: servicio.precio
-            }).catch(err => console.error('Error al enviar email de confirmación:', err.message));
+            }).then(() => console.log('[EMAIL] Enviado correctamente'))
+              .catch(err => console.error('[EMAIL] Error SendGrid:', err.response?.body || err.message));
+        } else {
+            console.log('[EMAIL] No se envía: usuario sin email o no encontrado');
         }
 
         res.status(201).json({
