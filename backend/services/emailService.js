@@ -20,6 +20,8 @@ function formatFecha(fechaStr) {
 }
 
 async function enviarConfirmacionCita({ emailCliente, nombreCliente, fecha, horaInicio, horaFin, nombreServicio, precio }) {
+    const key = process.env.SENDGRID_API_KEY || '';
+    console.log(`[EMAIL] API key: longitud=${key.length}, inicio="${key.substring(0, 6)}", fin="${key.substring(key.length - 4)}"`);
     await axios.post(
         'https://api.sendgrid.com/v3/mail/send',
         {
