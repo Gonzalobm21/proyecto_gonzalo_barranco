@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { guardarSesion } from '../services/authService';
-import api from '../services/api';
 
 function AuthCallback() {
   const navigate = useNavigate();
@@ -17,35 +16,31 @@ function AuthCallback() {
       }
 
       const user = session.user;
+      const nombreGoogle = user.user_metadata?.full_name || user.user_metadata?.name || user.email;
 
-      try {
-        const { data } = await api.post(
-          '/auth/sync-google-user',
-          {
-            id: user.id,
-            email: user.email,
-            nombre: user.user_metadata?.full_name || user.user_metadata?.name || user.email
-          },
-          {
-            headers: { Authorization: `Bearer ${session.access_token}` }
-          }
-        );
+      const { data: usuarioExistente } = await supabase
+        .from('usuario')
+        .select('id_usuario, nombre, rol')
+        .eq('id_usuario', user.id)
+        .single();
 
-        guardarSesion(session.access_token, {
-          id: user.id,
+      let nombre, rol;
+
+      if (usuarioExistente) {
+        nombre = usuarioExistente.nombre;
+        rol = usuarioExistente.rol;
+      } else {
+        await supabase.from('usuario').insert({
+          id_usuario: user.id,
           email: user.email,
-          nombre: data.nombre,
-          rol: data.rol
-        });
-      } catch {
-        guardarSesion(session.access_token, {
-          id: user.id,
-          email: user.email,
-          nombre: user.user_metadata?.full_name || user.email,
+          nombre: nombreGoogle,
           rol: 'cliente'
         });
+        nombre = nombreGoogle;
+        rol = 'cliente';
       }
 
+      guardarSesion(session.access_token, { id: user.id, email: user.email, nombre, rol });
       navigate('/');
     };
 
