@@ -40,16 +40,16 @@ function Navbar() {
     <header className="bg-[#8A2D3B] shadow-md relative z-50">
 
       {/* Barra principal */}
-      <div className="px-4 py-3 sm:px-6 sm:py-6 flex justify-between items-center">
+      <div className="px-4 py-3 md:px-6 md:py-6 flex justify-between items-center">
 
-        <Link to="/" className="text-[#F7F7FF] text-xl sm:text-3xl font-serif font-bold tracking-normal sm:tracking-wider">
+        <Link to="/" className="text-[#F7F7FF] text-xl md:text-3xl font-serif font-bold tracking-normal md:tracking-wider">
           ESSENZIA BARBER SHOP
         </Link>
 
         {/* Botón hamburguesa — solo en móvil */}
         <button
           onClick={() => setMenuAbierto(!menuAbierto)}
-          className="sm:hidden text-[#F7F7FF] p-1"
+          className="md:hidden text-[#F7F7FF] p-1"
           aria-label="Abrir menú"
         >
           {menuAbierto ? (
@@ -64,7 +64,7 @@ function Navbar() {
         </button>
 
         {/* Nav escritorio — oculta en móvil */}
-        <nav className="hidden sm:flex gap-4">
+        <nav className="hidden md:flex gap-4">
           {!usuario ? (
             <Link to="/login" className="bg-[#F7F7FF] text-[#070707] px-5 py-2 rounded font-bold uppercase text-sm border border-[#070707] hover:bg-gray-200 transition">
               Iniciar Sesion
@@ -91,7 +91,7 @@ function Navbar() {
 
       {/* Menú desplegable móvil */}
       {menuAbierto && (
-        <nav className="sm:hidden bg-[#6B1E2B] border-t-2 border-[#F7F7FF]/20 px-4 py-3 flex flex-col gap-2">
+        <nav className="md:hidden bg-[#6B1E2B] border-t-2 border-[#F7F7FF]/20 px-4 py-3 flex flex-col gap-2">
           {!usuario ? (
             <Link
               to="/login"
