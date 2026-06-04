@@ -120,11 +120,37 @@ router.post('/login', async (req, res) => {
 
     if (error) return res.status(401).json({ error: "Credenciales invalidas" });
 
+    const { data: usuarioData } = await supabase
+        .from('usuario')
+        .select('rol')
+        .eq('id_usuario', data.user.id)
+        .single();
+
     res.json({
         mensaje: "Login exitoso",
         token: data.session.access_token,
-        usuario: data.user
+        usuario: {
+            id: data.user.id,
+            email: data.user.email,
+            rol: usuarioData?.rol || 'cliente'
+        }
     });
+});
+
+/**
+ * @swagger
+ * /auth/logout:
+ *   post:
+ *     summary: Cerrar sesión
+ *     description: Invalida la sesión del usuario en Supabase.
+ *     tags: [Autenticación]
+ *     responses:
+ *       200:
+ *         description: Sesión cerrada correctamente
+ */
+router.post('/logout', async (_req, res) => {
+    await supabase.auth.signOut();
+    res.json({ mensaje: "Sesion cerrada correctamente" });
 });
 
 module.exports = router;

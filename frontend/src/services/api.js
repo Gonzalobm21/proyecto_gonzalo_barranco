@@ -1,17 +1,14 @@
 import axios from 'axios';
+import { obtenerSesion } from './authService';
 
-// Creamos una instancia de axios configurada
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000', // La URL de tu backend de Express
+    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000',
 });
 
-// Este interceptor añadirá el Token automáticamente en cada petición
-api.interceptors.request.use(async (config) => {
-    // Aquí es donde leeremos el token de la sesión de Supabase
-    // para enviárselo a nuestro "guardaespaldas" en el backend
-    const session = JSON.parse(localStorage.getItem('sb-tu-proyecto-auth-token')); // Ejemplo
-    if (session?.access_token) {
-        config.headers.Authorization = `Bearer ${session.access_token}`;
+api.interceptors.request.use((config) => {
+    const sesion = obtenerSesion();
+    if (sesion?.token) {
+        config.headers.Authorization = `Bearer ${sesion.token}`;
     }
     return config;
 });

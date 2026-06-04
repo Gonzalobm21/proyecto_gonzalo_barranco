@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { supabase } from '../services/supabaseClient';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import api from '../services/api';
+import { guardarSesion } from '../services/authService';
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -16,16 +17,14 @@ function Login() {
     setError(null);
     setLoading(true);
 
-    const { data, error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-
-    if (authError) {
-      setError('Credenciales no válidas. Inténtalo de nuevo.');
-      setLoading(false);
-    } else {
+    try {
+      const { data } = await api.post('/auth/login', { email, password });
+      guardarSesion(data.token, data.usuario);
       navigate('/');
+    } catch {
+      setError('Credenciales no válidas. Inténtalo de nuevo.');
+    } finally {
+      setLoading(false);
     }
   };
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { supabase } from '../services/supabaseClient';
+import api from '../services/api';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
@@ -37,40 +37,25 @@ function Register() {
     setLoading(true);
 
     try {
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      await api.post('/auth/register', {
+        nombre: formData.nombre,
+        telefono: formData.telefono,
         email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
-            full_name: formData.nombre,
-            telefono: formData.telefono
-          }
-        }
+        password: formData.password
       });
 
-      if (signUpError) throw signUpError;
-
-      if (data?.user) {
-        const { error: updateError } = await supabase
-          .from('usuario')
-          .update({ telefono: formData.telefono })
-          .eq('id_usuario', data.user.id);
-
-        if (updateError) throw updateError;
-      }
-
-      navigate('/login', { 
-        state: { mensaje: "¡Cuenta creada con éxito! Ya puedes iniciar sesión." } 
+      navigate('/login', {
+        state: { mensaje: "¡Cuenta creada con éxito! Ya puedes iniciar sesión." }
       });
 
     } catch (err) {
-      console.error("Error en el registro:", err);
-      if (err.message.includes('already registered')) {
+      const mensaje = err.response?.data?.error || '';
+      if (mensaje.includes('already registered') || mensaje.includes('ya registrado')) {
         setError("Este email ya está registrado.");
-      } else if (err.message.includes('Password should be at least')) {
-        setError("La contraseña debe tener al menos 8 caracteres.");
+      } else if (mensaje.includes('6 caracteres') || mensaje.includes('Password')) {
+        setError("La contraseña debe tener al menos 6 caracteres.");
       } else {
-        setError(err.message || "Error al crear la cuenta. Inténtalo de nuevo.");
+        setError(mensaje || "Error al crear la cuenta. Inténtalo de nuevo.");
       }
     } finally {
       setLoading(false);

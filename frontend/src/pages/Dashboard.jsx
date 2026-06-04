@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { supabase } from '../services/supabaseClient';
+import { obtenerUsuario } from '../services/authService';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
@@ -63,18 +63,15 @@ function Dashboard() {
 
   useEffect(() => {
     const cargarDiasCerrados = async () => {
-      const { data, error } = await supabase
-        .from('bloqueo_agenda')
-        .select('fecha')
-        .eq('hora_inicio', '00:00')
-        .eq('hora_fin', '23:59'); // Filtramos solo los días completos
-
-      if (!error && data) {
-        setDiasCerrados(data.map(bloqueo => bloqueo.fecha));
+      try {
+        const response = await api.get('/dias-cerrados');
+        setDiasCerrados(response.data);
+      } catch (error) {
+        console.error("Error al cargar días cerrados:", error);
       }
     };
     cargarDiasCerrados();
-  }, [mesVisible]); // Se recarga si el admin cambia de mes
+  }, [mesVisible]);
 
   const anioActual = mesVisible.getFullYear();
   const mesActual = mesVisible.getMonth();
@@ -145,8 +142,8 @@ function Dashboard() {
   const confirmarYEnviarReserva = async () => {
     setCargandoReserva(true);
     try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
+      const usuario = obtenerUsuario();
+      if (!usuario) {
         alert("Sesion caducada. Inicia sesion de nuevo.");
         return;
       }
@@ -155,7 +152,7 @@ function Dashboard() {
         id_servicio: servicioSeleccionado.id_servicio,
         fecha: fechaSeleccionada,
         hora_inicio: hora,
-        id_usuario: user.id
+        id_usuario: usuario.id
       });
 
       setShowModal(false);

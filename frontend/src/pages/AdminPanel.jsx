@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../services/supabaseClient';
 import { Link } from 'react-router-dom';
+import api from '../services/api';
 import {
   Chart as ChartJS,
   CategoryScale, LinearScale, BarElement,
@@ -64,25 +64,14 @@ function AdminPanel() {
     const cargarDatos = async () => {
       try {
         setCargando(true);
-        const { data: dataClientes, error: errClientes } = await supabase.from('usuario').select('*').eq('rol', 'cliente');
-        if (errClientes) throw errClientes;
-        setClientes(dataClientes || []);
-
-        const { data: dataCitas, error: errCitas } = await supabase
-          .from('cita')
-          .select('id_cita, fecha, hora_inicio, estado, usuario!inner (nombre, rol), servicio (nombre, precio, duracion_minutos)')
-          .eq('estado', 'CONFIRMADA')
-          .eq('usuario.rol', 'cliente')
-          .order('fecha', { ascending: true });
-
-        if (errCitas) throw errCitas;
-        setCitas(dataCitas || []);
-
-        const { data: dataStats, error: errStats } = await supabase
-          .from('cita')
-          .select('fecha, hora_inicio, estado, usuario(nombre), servicio(nombre, precio)')
-          .neq('estado', 'CANCELADA');
-        if (!errStats) setStatsData(dataStats || []);
+        const [resClientes, resCitas, resStats] = await Promise.all([
+          api.get('/admin/clientes'),
+          api.get('/admin/citas'),
+          api.get('/admin/stats'),
+        ]);
+        setClientes(resClientes.data || []);
+        setCitas(resCitas.data || []);
+        setStatsData(resStats.data || []);
       } catch (error) {
         console.error("Error cargando panel:", error.message);
       } finally {
@@ -98,14 +87,8 @@ function AdminPanel() {
     setClienteSeleccionado(cliente);
     setCargandoHistorial(true);
     try {
-      const { data, error } = await supabase
-        .from('cita')
-        .select('id_cita, fecha, hora_inicio, estado, servicio ( nombre, precio, duracion_minutos )')
-        .eq('id_usuario', cliente.id_usuario)
-        .order('fecha', { ascending: false });
-
-      if (error) throw error;
-      setHistorialCitas(data || []);
+      const response = await api.get(`/admin/historial/${cliente.id_usuario}`);
+      setHistorialCitas(response.data || []);
     } catch (error) {
       console.error("Error al cargar historial:", error.message);
     } finally {
@@ -121,28 +104,18 @@ function AdminPanel() {
   // Función que se ejecuta al darle a "Aceptar" en el modal de confirmación
   const ejecutarMarcarCompletada = async () => {
     if (!citaACompletar) return;
-    
+
     try {
-      const { error } = await supabase
-        .from('cita')
-        .update({ estado: 'COMPLETADA' })
-        .eq('id_cita', citaACompletar);
+      await api.patch(`/citas/${citaACompletar}`, { nuevo_estado: 'COMPLETADA' });
 
-      if (error) throw error;
-
-      // 1. Lo quitamos de la lista de Próximas Citas
       setCitas(prev => prev.filter(c => c.id_cita !== citaACompletar));
-      
-      // 2. Si casualmente tenemos el historial del cliente abierto, lo actualizamos ahí también
-      setHistorialCitas(prev => prev.map(c => 
+      setHistorialCitas(prev => prev.map(c =>
         c.id_cita === citaACompletar ? { ...c, estado: 'COMPLETADA' } : c
       ));
-
-      // 3. Cerramos el modal
       setCitaACompletar(null);
     } catch (error) {
       console.error("Error al completar cita:", error.message);
-      alert("Hubo un error. Asegúrate de tener los permisos RLS activados en Supabase.");
+      alert("Hubo un error al marcar la cita como completada.");
     }
   };
 
@@ -174,15 +147,10 @@ function AdminPanel() {
   // Función para consultar las horas ya bloqueadas de un día específico
   const cargarHorasBloqueadas = async (fechaStr) => {
     try {
-      const { data, error } = await supabase
-        .from('bloqueo_agenda')
-        .select('hora_inicio, hora_fin')
-        .eq('fecha', fechaStr);
-
-      if (error) throw error;
+      const response = await api.get(`/admin/bloqueos?fecha=${fechaStr}`);
 
       const bloqueadas = new Set();
-      data.forEach(bloqueo => {
+      response.data.forEach(bloqueo => {
         const startMins = timeToMins(bloqueo.hora_inicio);
         const endMins = timeToMins(bloqueo.hora_fin);
 
@@ -232,21 +200,19 @@ function AdminPanel() {
     if (diasSeleccionados.length === 0) return;
     setCargandoBloqueo(true);
     try {
-      const datos = diasSeleccionados.map(fStr => ({
+      const bloqueos = diasSeleccionados.map(fStr => ({
         fecha: fStr,
         hora_inicio: '00:00',
         hora_fin: '23:59',
         motivo: motivoBloqueo || 'Vacaciones/Cierre'
       }));
-      const { error } = await supabase.from('bloqueo_agenda').insert(datos);
-      if (error) throw error;
-      
+      await api.post('/admin/bloqueos', { bloqueos });
+
       setNotificacion({ visible: true, mensaje: 'Días bloqueados con éxito', tipo: 'exito' });
-      
       setDiasSeleccionados([]);
       setMotivoBloqueo('');
     } catch (err) {
-      setNotificacion({ visible: true, mensaje: err.message, tipo: 'error' });
+      setNotificacion({ visible: true, mensaje: err.response?.data?.error || err.message, tipo: 'error' });
     } finally {
       setCargandoBloqueo(false);
     }
@@ -259,21 +225,21 @@ function AdminPanel() {
     }
     setCargandoBloqueo(true);
     try {
-      const { error } = await supabase.from('bloqueo_agenda').insert([{
-        fecha: diaHorasSeleccionado,
-        hora_inicio: horaInicioCalculada,
-        hora_fin: horaFinCalculada,
-        motivo: motivoBloqueo || 'Cierre de horas'
-      }]);
-      if (error) throw error;
+      await api.post('/admin/bloqueos', {
+        bloqueos: [{
+          fecha: diaHorasSeleccionado,
+          hora_inicio: horaInicioCalculada,
+          hora_fin: horaFinCalculada,
+          motivo: motivoBloqueo || 'Cierre de horas'
+        }]
+      });
 
       setNotificacion({ visible: true, mensaje: 'Horario bloqueado con éxito', tipo: 'exito' });
-      
       setDiaHorasSeleccionado(null);
       setRangoHoras([]);
       setMotivoBloqueo('');
     } catch (err) {
-      setNotificacion({ visible: true, mensaje: err.message, tipo: 'error' });
+      setNotificacion({ visible: true, mensaje: err.response?.data?.error || err.message, tipo: 'error' });
     } finally {
       setCargandoBloqueo(false);
     }

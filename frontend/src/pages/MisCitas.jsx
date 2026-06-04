@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { supabase } from '../services/supabaseClient';
+import { obtenerSesion } from '../services/authService';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
@@ -27,15 +27,14 @@ function MisCitas() {
   useEffect(() => {
     const cargarCitas = async () => {
       try {
-        // Usamos getSession para evitar bloqueos de red al recargar la página
-        const { data: { session }, error: authError } = await supabase.auth.getSession();
-        
-        if (authError || !session) {
+        const sesion = obtenerSesion();
+
+        if (!sesion) {
           navigate('/login');
           return;
         }
 
-        const response = await api.get(`/mis-citas/${session.user.id}`);
+        const response = await api.get(`/mis-citas/${sesion.usuario.id}`);
         setCitas(response.data);
       } catch (error) {
         console.error("Error al traer las citas:", error);
@@ -91,13 +90,11 @@ function MisCitas() {
     if (enviandoReview) return;
     setEnviandoReview(true);
     try {
-
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (!session) return;
+      const sesion = obtenerSesion();
+      if (!sesion) return;
 
       await api.post('/nueva-review', {
-        id_usuario: session.user.id,
+        id_usuario: sesion.usuario.id,
         id_servicio: citaAResenar.id_servicio,
         id_cita: citaAResenar.id_cita,
         calificacion,

@@ -8,6 +8,7 @@ const supabase = require('./supabase');
 
 const authRoutes = require('./routes/auth');
 const citasRoutes = require('./routes/citas');
+const adminRoutes = require('./routes/admin');
 const { enviarConfirmacionCita } = require('./services/emailService');
 
 const app = express();
@@ -49,6 +50,7 @@ app.get('/api-docs.json', (_req, res) => {
 // --- CONEXION DE RUTAS CON SUS LÍMITES ESPECÍFICOS ---
 app.use('/auth', authLimiter, authRoutes);
 app.use('/citas', generalLimiter, citasRoutes);
+app.use('/admin', generalLimiter, adminRoutes);
 
 /**
  * @swagger
@@ -660,6 +662,40 @@ app.get('/reviews', async (req, res, next) => {
         if (error) throw error;
         
         res.json(data);
+    } catch (err) {
+        next(err);
+    }
+});
+
+/**
+ * @swagger
+ * /dias-cerrados:
+ *   get:
+ *     summary: Días completos bloqueados por el administrador
+ *     description: Devuelve las fechas en las que la agenda está cerrada todo el día (bloqueos de 00:00 a 23:59).
+ *     tags: [Citas]
+ *     responses:
+ *       200:
+ *         description: Lista de fechas cerradas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: string
+ *                 format: date
+ *                 example: "2025-08-15"
+ */
+app.get('/dias-cerrados', async (_req, res, next) => {
+    try {
+        const { data, error } = await supabase
+            .from('bloqueo_agenda')
+            .select('fecha')
+            .eq('hora_inicio', '00:00')
+            .eq('hora_fin', '23:59');
+
+        if (error) throw error;
+        res.json(data.map(b => b.fecha));
     } catch (err) {
         next(err);
     }
