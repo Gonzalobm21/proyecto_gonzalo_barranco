@@ -7,8 +7,15 @@ function Navbar() {
   const [usuario, setUsuario] = useState(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [menuAbierto, setMenuAbierto] = useState(false);
+  const [esMobil, setEsMobil] = useState(window.innerWidth < 768);
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    const handleResize = () => setEsMobil(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     setMenuAbierto(false);
@@ -36,111 +43,99 @@ function Navbar() {
     navigate('/');
   };
 
+  const botonesNav = (
+    <>
+      {!usuario ? (
+        <Link
+          to="/login"
+          onClick={() => setMenuAbierto(false)}
+          className="bg-[#F7F7FF] text-[#070707] px-5 py-2 rounded font-bold uppercase text-sm border border-[#070707] hover:bg-gray-200 transition"
+        >
+          Iniciar Sesion
+        </Link>
+      ) : (
+        <button
+          onClick={() => { setMenuAbierto(false); setShowLogoutModal(true); }}
+          className="bg-[#F7F7FF] text-[#070707] px-5 py-2 rounded font-bold uppercase text-sm border border-[#070707] hover:bg-gray-200 transition w-full text-left md:w-auto md:text-center"
+        >
+          Cerrar Sesion
+        </button>
+      )}
+
+      {location.pathname !== '/mis-citas' && (
+        <Link
+          to="/mis-citas"
+          onClick={() => setMenuAbierto(false)}
+          className="bg-[#F7F7FF] text-[#070707] px-5 py-2 rounded font-bold uppercase text-sm hover:bg-gray-200 transition"
+        >
+          Mis Citas
+        </Link>
+      )}
+
+      {usuario?.rol === 'admin' && location.pathname !== '/admin' && (
+        <Link
+          to="/admin"
+          onClick={() => setMenuAbierto(false)}
+          className="bg-[#F7F7FF] text-[#070707] px-5 py-2 rounded font-bold uppercase text-sm border border-[#070707] hover:bg-gray-200 transition"
+        >
+          Administrar Citas
+        </Link>
+      )}
+    </>
+  );
+
   return (
     <header className="bg-[#8A2D3B] shadow-md relative z-50">
 
       {/* Barra principal */}
-      <div className="px-4 py-3 md:px-6 md:py-6 flex justify-between items-center">
+      <div className="px-4 py-3 flex justify-between items-center">
 
-        <Link to="/" className="text-[#F7F7FF] text-xl md:text-3xl font-serif font-bold tracking-normal md:tracking-wider">
+        <Link to="/" className="text-[#F7F7FF] text-xl font-serif font-bold">
           ESSENZIA BARBER SHOP
         </Link>
 
-        {/* Botón hamburguesa — solo en móvil */}
-        <button
-          onClick={() => setMenuAbierto(!menuAbierto)}
-          className="md:hidden text-[#F7F7FF] p-1"
-          aria-label="Abrir menú"
-        >
-          {menuAbierto ? (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          )}
-        </button>
-
-        {/* Nav escritorio — oculta en móvil */}
-        <nav className="hidden md:flex gap-4">
-          {!usuario ? (
-            <Link to="/login" className="bg-[#F7F7FF] text-[#070707] px-5 py-2 rounded font-bold uppercase text-sm border border-[#070707] hover:bg-gray-200 transition">
-              Iniciar Sesion
-            </Link>
-          ) : (
-            <button onClick={() => setShowLogoutModal(true)} className="bg-[#F7F7FF] text-[#070707] px-5 py-2 rounded font-bold uppercase text-sm border border-[#070707] hover:bg-gray-200 transition">
-              Cerrar Sesion
-            </button>
-          )}
-
-          {location.pathname !== '/mis-citas' && (
-            <Link to="/mis-citas" className="bg-[#F7F7FF] text-[#070707] px-5 py-2 rounded font-bold uppercase text-sm hover:bg-gray-200 transition">
-              Mis Citas
-            </Link>
-          )}
-
-          {usuario?.rol === 'admin' && location.pathname !== '/admin' && (
-            <Link to="/admin" className="bg-[#F7F7FF] text-[#070707] px-5 py-2 rounded font-bold uppercase text-sm border border-[#070707] hover:bg-gray-200 transition">
-              Administrar Citas
-            </Link>
-          )}
-        </nav>
+        {esMobil ? (
+          /* Botón hamburguesa */
+          <button
+            onClick={() => setMenuAbierto(!menuAbierto)}
+            className="text-[#F7F7FF] p-1"
+            aria-label="Abrir menú"
+          >
+            {menuAbierto ? (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
+        ) : (
+          /* Nav escritorio */
+          <nav className="flex gap-4">
+            {botonesNav}
+          </nav>
+        )}
       </div>
 
       {/* Menú desplegable móvil */}
-      {menuAbierto && (
-        <nav className="md:hidden bg-[#6B1E2B] border-t-2 border-[#F7F7FF]/20 px-4 py-3 flex flex-col gap-2">
-          {!usuario ? (
-            <Link
-              to="/login"
-              onClick={() => setMenuAbierto(false)}
-              className="bg-[#F7F7FF] text-[#070707] px-4 py-2 rounded font-bold uppercase text-sm border border-[#070707] text-center hover:bg-gray-200 transition"
-            >
-              Iniciar Sesion
-            </Link>
-          ) : (
-            <button
-              onClick={() => { setMenuAbierto(false); setShowLogoutModal(true); }}
-              className="bg-[#F7F7FF] text-[#070707] px-4 py-2 rounded font-bold uppercase text-sm border border-[#070707] text-center hover:bg-gray-200 transition w-full"
-            >
-              Cerrar Sesion
-            </button>
-          )}
-
-          {location.pathname !== '/mis-citas' && (
-            <Link
-              to="/mis-citas"
-              onClick={() => setMenuAbierto(false)}
-              className="bg-[#F7F7FF] text-[#070707] px-4 py-2 rounded font-bold uppercase text-sm text-center hover:bg-gray-200 transition"
-            >
-              Mis Citas
-            </Link>
-          )}
-
-          {usuario?.rol === 'admin' && location.pathname !== '/admin' && (
-            <Link
-              to="/admin"
-              onClick={() => setMenuAbierto(false)}
-              className="bg-[#F7F7FF] text-[#070707] px-4 py-2 rounded font-bold uppercase text-sm border border-[#070707] text-center hover:bg-gray-200 transition"
-            >
-              Administrar Citas
-            </Link>
-          )}
+      {esMobil && menuAbierto && (
+        <nav className="bg-[#6B1E2B] border-t-2 border-white/20 px-4 py-3 flex flex-col gap-2">
+          {botonesNav}
         </nav>
       )}
 
       {/* MODAL DE CERRAR SESIÓN */}
       {showLogoutModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[1000] p-4 cursor-default">
-          <div className="bg-white border-4 border-[#070707] p-6 sm:p-8 rounded-xl shadow-[12px_12px_0px_0px_rgba(7,7,7,1)] max-w-sm w-full animate-in fade-in zoom-in duration-200">
+          <div className="bg-white border-4 border-[#070707] p-6 rounded-xl shadow-[12px_12px_0px_0px_rgba(7,7,7,1)] max-w-sm w-full animate-in fade-in zoom-in duration-200">
 
-            <h3 className="text-2xl sm:text-3xl font-black uppercase text-[#8A2D3B] mb-4 text-center">
+            <h3 className="text-2xl font-black uppercase text-[#8A2D3B] mb-4 text-center">
               ¿Cerrar Sesión?
             </h3>
 
-            <p className="font-bold text-gray-600 mb-6 sm:mb-8 text-center text-sm sm:text-base">
+            <p className="font-bold text-gray-600 mb-6 text-center text-sm">
               Estás a punto de salir de tu cuenta.
             </p>
 
