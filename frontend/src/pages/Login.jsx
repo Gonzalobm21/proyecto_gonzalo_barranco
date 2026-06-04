@@ -61,7 +61,7 @@ function Login() {
           </p>
         </div>
 
-        <div className="p-8">
+        <div className="p-6 sm:p-8">
           <h2 className="font-serif text-2xl font-black text-texto-oscuro text-center mb-8 uppercase tracking-wide">
             Acceso
           </h2>
@@ -111,7 +111,7 @@ function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#8A2D3B] text-fondo-claro font-black uppercase tracking-widest text-lg py-4 mt-6 rounded-none hover:rounded-3xl transition-all duration-300 disabled:opacity-50 disabled:hover:rounded-none"
+              className="w-full bg-[#8A2D3B] text-fondo-claro font-black uppercase tracking-widest text-base sm:text-lg py-3 sm:py-4 mt-6 rounded-none hover:rounded-3xl transition-all duration-300 disabled:opacity-50 disabled:hover:rounded-none"
             >
               {loading ? 'Verificando...' : 'Entrar'}
             </button>

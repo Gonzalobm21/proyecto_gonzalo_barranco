@@ -33,25 +33,25 @@ function Navbar() {
   };
 
   return (
-    <header className="bg-[#8A2D3B] p-6 flex justify-between items-center shadow-md relative z-50">
+    <header className="bg-[#8A2D3B] px-4 py-3 sm:p-6 flex flex-col sm:flex-row justify-between items-center gap-2 shadow-md relative z-50">
 
-      <Link to="/" className="text-[#F7F7FF] text-3xl font-serif font-bold tracking-wider">
+      <Link to="/" className="text-[#F7F7FF] text-xl sm:text-3xl font-serif font-bold tracking-normal sm:tracking-wider">
         ESSENZIA BARBER SHOP
       </Link>
 
-      <nav className="flex gap-4">
+      <nav className="flex flex-wrap justify-center gap-2 sm:gap-4">
 
         {!usuario ? (
           <Link
             to="/login"
-            className="bg-[#F7F7FF] text-[#070707] px-5 py-2 rounded font-bold uppercase text-sm border border-[#070707] hover:bg-gray-200 transition"
+            className="bg-[#F7F7FF] text-[#070707] px-3 py-1.5 sm:px-5 sm:py-2 rounded font-bold uppercase text-xs sm:text-sm border border-[#070707] hover:bg-gray-200 transition"
           >
             Iniciar Sesion
           </Link>
         ) : (
           <button
             onClick={() => setShowLogoutModal(true)}
-            className="bg-[#F7F7FF] text-[#070707] px-5 py-2 rounded font-bold uppercase text-sm border border-[#070707] hover:bg-gray-200 transition"
+            className="bg-[#F7F7FF] text-[#070707] px-3 py-1.5 sm:px-5 sm:py-2 rounded font-bold uppercase text-xs sm:text-sm border border-[#070707] hover:bg-gray-200 transition"
           >
             Cerrar Sesion
           </button>
@@ -60,7 +60,7 @@ function Navbar() {
         {location.pathname !== '/mis-citas' && (
           <Link
             to="/mis-citas"
-            className="bg-[#F7F7FF] text-[#070707] px-5 py-2 rounded font-bold uppercase text-sm hover:bg-gray-200 transition"
+            className="bg-[#F7F7FF] text-[#070707] px-3 py-1.5 sm:px-5 sm:py-2 rounded font-bold uppercase text-xs sm:text-sm hover:bg-gray-200 transition"
           >
             Mis Citas
           </Link>
@@ -69,7 +69,7 @@ function Navbar() {
         {usuario?.rol === 'admin' && location.pathname !== '/admin' && (
           <Link
             to="/admin"
-            className="bg-[#F7F7FF] text-[#070707] px-5 py-2 rounded font-bold uppercase text-sm border border-[#070707] hover:bg-gray-200 transition"
+            className="bg-[#F7F7FF] text-[#070707] px-3 py-1.5 sm:px-5 sm:py-2 rounded font-bold uppercase text-xs sm:text-sm border border-[#070707] hover:bg-gray-200 transition"
           >
             Administrar Citas
           </Link>
@@ -79,13 +79,13 @@ function Navbar() {
       {/* MODAL DE CERRAR SESIÓN --- */}
       {showLogoutModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[1000] p-4 cursor-default">
-          <div className="bg-white border-4 border-[#070707] p-8 rounded-xl shadow-[12px_12px_0px_0px_rgba(7,7,7,1)] max-w-sm w-full animate-in fade-in zoom-in duration-200">
+          <div className="bg-white border-4 border-[#070707] p-6 sm:p-8 rounded-xl shadow-[12px_12px_0px_0px_rgba(7,7,7,1)] max-w-sm w-full animate-in fade-in zoom-in duration-200">
 
-            <h3 className="text-3xl font-black uppercase text-[#8A2D3B] mb-4 text-center">
+            <h3 className="text-2xl sm:text-3xl font-black uppercase text-[#8A2D3B] mb-4 text-center">
               ¿Cerrar Sesión?
             </h3>
 
-            <p className="font-bold text-gray-600 mb-8 text-center">
+            <p className="font-bold text-gray-600 mb-6 sm:mb-8 text-center text-sm sm:text-base">
               Estás a punto de salir de tu cuenta.
             </p>
 

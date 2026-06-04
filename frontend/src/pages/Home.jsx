@@ -106,16 +106,16 @@ function Home() {
       
       <Navbar />
 
-      <main className="max-w-5xl mx-auto p-8 space-y-24 py-16">
-        
+      <main className="max-w-5xl mx-auto px-4 sm:p-8 space-y-12 sm:space-y-24 py-8 sm:py-16">
+
         {/* CARRUSEL DE FOTOS */}
-      <section className="py-20 bg-[#F4F1EA]">
-        <div className="container mx-auto px-4">
-          
-          <h2 className="text-4xl font-black mb-8 text-[#8A2D3B] text-center uppercase tracking-wide">Galería</h2>
+      <section className="py-10 sm:py-20 bg-[#F4F1EA]">
+        <div className="container mx-auto px-0 sm:px-4">
+
+          <h2 className="text-2xl sm:text-4xl font-black mb-6 sm:mb-8 text-[#8A2D3B] text-center uppercase tracking-wide">Galería</h2>
 
           <div className="max-w-[1000px] mx-auto">
-            <div className="h-137.5 w-full relative group">
+            <div className="h-48 sm:h-80 md:h-[550px] w-full relative group">
               <div
                 style={{ backgroundImage: `url(${imagenesGaleria[currentIndex]})`, opacity: slideOpacity, transition: 'opacity 0.2s ease' }}
                 className="w-full h-full rounded-xl bg-center bg-cover border-4 border-texto-oscuro shadow-[10px_10px_0px_0px_rgba(7,7,7,1)]"
@@ -153,7 +153,7 @@ function Home() {
       </section>
 
         <section>
-          <h2 className="text-4xl font-black mb-8 text-[#8A2D3B] text-center uppercase tracking-wide">Servicios</h2>
+          <h2 className="text-2xl sm:text-4xl font-black mb-6 sm:mb-8 text-[#8A2D3B] text-center uppercase tracking-wide">Servicios</h2>
           
           {loading ? (
             <div className="text-center text-barber-azul font-bold text-xl py-10">Cargando la carta de servicios...</div>
@@ -188,10 +188,10 @@ function Home() {
 
         {/* SECCIÓN RESEÑAS */}
         {reviews.length > 0 && (
-          <section className="py-24 bg-[#F4F1EA]">
-            <div className="container mx-auto px-4">
-              <div className="max-w-3xl mx-auto text-center mb-16">
-                <h2 className="text-4xl font-black mb-4 text-[#8A2D3B] text-center uppercase tracking-wide">Experiencias de nuestros clientes</h2>
+          <section className="py-12 sm:py-24 bg-[#F4F1EA]">
+            <div className="container mx-auto px-0 sm:px-4">
+              <div className="max-w-3xl mx-auto text-center mb-10 sm:mb-16">
+                <h2 className="text-2xl sm:text-4xl font-black mb-4 text-[#8A2D3B] text-center uppercase tracking-wide">Experiencias de nuestros clientes</h2>
                 <div className="w-16 h-1 bg-[#8A2D3B] mx-auto"></div>
               </div>
 
@@ -199,7 +199,7 @@ function Home() {
                 {reviews.map((review) => (
                   <div 
                     key={review.id_review} 
-                    className="bg-white p-10 rounded-sm shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col justify-between relative border border-gray-100"
+                    className="bg-white p-6 sm:p-10 rounded-sm shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col justify-between relative border border-gray-100"
                   >
                     <div>
                       <div className="flex justify-between items-center mb-8">

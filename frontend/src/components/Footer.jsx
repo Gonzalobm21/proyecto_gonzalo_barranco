@@ -5,7 +5,7 @@ function Footer() {
 
   return (
     <footer className="bg-[#170202] text-[#F4F1EA] pt-16 pb-8 border-t-8 border-[#8A2D3B] mt-16">
-      <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-12 border-b border-gray-800 pb-12">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-12 border-b border-gray-800 pb-8 sm:pb-12">
 
         {/* Columna 1: Marca */}
         <div className="flex flex-col">
@@ -24,9 +24,9 @@ function Footer() {
             Horario
           </h4>
           <ul className="text-gray-400 text-sm space-y-3 font-medium">
-            <li className="flex justify-between border-b border-gray-800 pb-2">
+            <li className="flex flex-col sm:flex-row sm:justify-between border-b border-gray-800 pb-2 gap-1">
               <span>Lunes - Viernes</span>
-              <span className="text-[#F4F1EA]">09:00 - 14:00 / 17:00 - 20:00 </span>
+              <span className="text-[#F4F1EA]">09:00 - 14:00 / 17:00 - 20:00</span>
             </li>
             
             <li className="flex justify-between pb-2">

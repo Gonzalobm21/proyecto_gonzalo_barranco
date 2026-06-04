@@ -159,7 +159,7 @@ function MisCitas() {
     <div className="min-h-screen flex flex-col bg-[#F4F1EA] text-texto-oscuro">
       <Navbar />
 
-      <main className="flex-1 max-w-5xl mx-auto w-full p-8 py-12">
+      <main className="flex-1 max-w-5xl mx-auto w-full p-4 py-8 sm:p-8 sm:py-12">
         
         <button 
           onClick={() => navigate('/')} 
@@ -168,7 +168,7 @@ function MisCitas() {
           &lt; Volver a Servicios
         </button>
         
-        <h2 className="text-4xl font-black mb-10 text-texto-oscuro uppercase tracking-wide border-b-8 border-[#8A2D3B] pb-4 inline-block">
+        <h2 className="text-2xl sm:text-4xl font-black mb-6 sm:mb-10 text-texto-oscuro uppercase tracking-wide border-b-8 border-[#8A2D3B] pb-4 inline-block">
           Mi Historial de Citas
         </h2>
 
@@ -244,8 +244,8 @@ function MisCitas() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {citasPaginadas.map(cita => (
               <div 
-                key={cita.id_cita} 
-                className={`bg-white border-4 border-texto-oscuro p-6 rounded-xl shadow-[8px_8px_0px_0px_rgba(7,7,7,1)] flex flex-col justify-between transition-transform hover:-translate-y-1
+                key={cita.id_cita}
+                className={`bg-white border-4 border-texto-oscuro p-4 sm:p-6 rounded-xl shadow-[8px_8px_0px_0px_rgba(7,7,7,1)] flex flex-col justify-between transition-transform hover:-translate-y-1
                   ${cita.estado === 'CANCELADA' ? 'opacity-70 grayscale' : ''}
                 `}
               >
@@ -254,7 +254,7 @@ function MisCitas() {
                     <span className="text-[#8A2D3B] font-black text-lg uppercase tracking-widest block mb-1">
                       {formatearFecha(cita.fecha)}
                     </span>
-                    <h3 className="text-2xl font-black uppercase">{cita.servicio.nombre}</h3>
+                    <h3 className="text-lg sm:text-2xl font-black uppercase">{cita.servicio.nombre}</h3>
                   </div>
                   <div className={`px-3 py-1 border-2 rounded font-black text-xs uppercase tracking-wider ${getEstiloEstado(cita.estado)}`}>
                     {cita.estado}

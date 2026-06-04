@@ -171,7 +171,7 @@ function Dashboard() {
     <div className="min-h-screen bg-[#F4F1EA] text-texto-oscuro">
       <Navbar />
 
-      <div className="max-w-4xl mx-auto p-8">
+      <div className="max-w-4xl mx-auto p-4 sm:p-8">
         <button 
           onClick={() => navigate('/')} 
           className="mb-6 font-bold text-barber-azul hover:text-texto-oscuro transition flex items-center gap-2 uppercase tracking-widest text-sm"
@@ -180,20 +180,20 @@ function Dashboard() {
         </button>
 
         {servicioSeleccionado && (
-          <div className="bg-barber-azul text-fondo-claro p-6 rounded-xl mb-10 flex flex-col md:flex-row justify-between items-center shadow-[6px_6px_0px_0px_rgba(7,7,7,1)] border-4 border-texto-oscuro">
+          <div className="bg-barber-azul text-fondo-claro p-4 sm:p-6 rounded-xl mb-8 sm:mb-10 flex flex-col md:flex-row justify-between items-center shadow-[6px_6px_0px_0px_rgba(7,7,7,1)] border-4 border-texto-oscuro">
             <div>
-              <span className="text-sm font-bold uppercase tracking-widest block mb-2 opacity-80">Servicio Elegido</span>
-              <span className="text-2xl font-black uppercase">{servicioSeleccionado.nombre}</span>
+              <span className="text-xs sm:text-sm font-bold uppercase tracking-widest block mb-2 opacity-80">Servicio Elegido</span>
+              <span className="text-xl sm:text-2xl font-black uppercase">{servicioSeleccionado.nombre}</span>
             </div>
-            <div className="text-center md:text-right mt-4 md:mt-0">
-              <span className="text-4xl font-black block">{servicioSeleccionado.precio} EUR</span>
+            <div className="text-center md:text-right mt-3 md:mt-0">
+              <span className="text-3xl sm:text-4xl font-black block">{servicioSeleccionado.precio} EUR</span>
             </div>
           </div>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="bg-white border-4 border-texto-oscuro p-6 rounded-xl shadow-[6px_6px_0px_0px_rgba(7,7,7,1)]">
-            <div className="flex justify-between items-center mb-6">
+          <div className="bg-white border-4 border-texto-oscuro p-3 sm:p-6 rounded-xl shadow-[6px_6px_0px_0px_rgba(7,7,7,1)]">
+            <div className="flex justify-between items-center mb-4 sm:mb-6">
               <label className="block text-sm font-black uppercase tracking-widest text-texto-oscuro">Dia</label>
               <div className="flex items-center gap-3">
                 <button onClick={() => cambiarMes(-1)} className="font-black text-xl hover:text-barber-azul">&lt;</button>
@@ -203,7 +203,7 @@ function Dashboard() {
                 <button onClick={() => cambiarMes(1)} className="font-black text-xl hover:text-barber-azul">&gt;</button>
               </div>
             </div>
-            <div className="grid grid-cols-7 gap-2 text-center text-sm">
+            <div className="grid grid-cols-7 gap-1 sm:gap-2 text-center text-sm">
               {['L','M','X','J','V','S','D'].map(d => <div key={d} className="text-texto-oscuro text-sm font-black py-1">{d}</div>)}
               {Array.from({ length: espaciosVacios }).map((_, i) => <div key={`empty-${i}`} className="p-2"></div>)}
               {Array.from({ length: diasEnMes }, (_, i) => i + 1).map(dia => {
@@ -255,8 +255,8 @@ function Dashboard() {
             </div>
           </div>
 
-          <div className="bg-white border-4 border-texto-oscuro p-6 rounded-xl shadow-[6px_6px_0px_0px_rgba(7,7,7,1)] flex flex-col">
-            <label className="block text-sm font-black uppercase tracking-widest text-texto-oscuro mb-6">Hora</label>
+          <div className="bg-white border-4 border-texto-oscuro p-3 sm:p-6 rounded-xl shadow-[6px_6px_0px_0px_rgba(7,7,7,1)] flex flex-col">
+            <label className="block text-sm font-black uppercase tracking-widest text-texto-oscuro mb-4 sm:mb-6">Hora</label>
             {!fechaSeleccionada ? (
               <div className="text-sm font-bold text-[#8A2D3B] bg-red-50 p-4 rounded border-2 border-[#8A2D3B] flex-1 flex items-center justify-center text-center">
                 SELECCIONA UN DIA PRIMERO

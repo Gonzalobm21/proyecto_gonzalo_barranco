@@ -3,10 +3,6 @@ const express = require('express');
 const router = express.Router();
 const supabase = require('../supabase');
 
-router.use((req, _res, next) => {
-    console.log(`[AUTH ROUTER] ${req.method} ${req.path}`);
-    next();
-});
 
 /**
  * @swagger

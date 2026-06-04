@@ -37,11 +37,6 @@ const generalLimiter = rateLimit({
 app.use(cors());
 app.use(express.json());
 
-app.use((req, _res, next) => {
-    console.log(`[REQUEST] ${req.method} ${req.url}`);
-    next();
-});
-
 // --- SWAGGER UI ---
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
     customSiteTitle: 'Essenzia Barber Shop — API Docs',
