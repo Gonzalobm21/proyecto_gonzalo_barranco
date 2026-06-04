@@ -153,4 +153,32 @@ router.post('/logout', async (_req, res) => {
     res.json({ mensaje: "Sesion cerrada correctamente" });
 });
 
+const validarSesion = require('../middleware/authMiddleware');
+
+router.post('/sync-google-user', validarSesion, async (req, res) => {
+    const { nombre, email } = req.body;
+    const userId = req.usuarioLogueado.id;
+
+    const { data: usuarioExistente } = await supabase
+        .from('usuario')
+        .select('id_usuario, nombre, rol')
+        .eq('id_usuario', userId)
+        .single();
+
+    if (usuarioExistente) {
+        return res.json({ nombre: usuarioExistente.nombre, rol: usuarioExistente.rol });
+    }
+
+    const { error } = await supabase.from('usuario').insert({
+        id_usuario: userId,
+        email,
+        nombre: nombre || email,
+        rol: 'cliente'
+    });
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    res.json({ nombre: nombre || email, rol: 'cliente' });
+});
+
 module.exports = router;

@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import MisCitas from './pages/MisCitas';
 import Register from './pages/Register';
 import AdminPanel from './pages/AdminPanel';
+import AuthCallback from './pages/AuthCallback';
 
 function App() {
   const [session, setSession] = useState(null);
@@ -46,6 +47,7 @@ function App() {
         <Route path="/dashboard" element={session ? <Dashboard /> : <Navigate to="/login" />} />
         <Route path="/mis-citas" element={session ? <MisCitas /> : <Navigate to="/login" />} />
         <Route path="/admin" element={session && userRole === 'admin' ? <AdminPanel /> : <Navigate to="/" />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
       </Routes>
     </Router>
   );
