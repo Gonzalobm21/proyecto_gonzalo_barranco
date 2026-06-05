@@ -285,9 +285,11 @@ function AdminPanel() {
     labels: ingresosLabels,
     datasets: [{ label: 'Ingresos', data: ingresosValues, backgroundColor: '#8A2D3B', borderRadius: 6, hoverBackgroundColor: '#6b222d' }],
   };
+  const totalServicios = topServicios.reduce((sum, [, v]) => sum + v, 0);
+  const serviciosColors = ['#8A2D3B', '#3F88C5', '#2A9D8F', '#F4A261', '#6A0572'];
   const chartServicios = {
     labels: topServicios.map(([k]) => k),
-    datasets: [{ data: topServicios.map(([, v]) => v), backgroundColor: ['#8A2D3B', '#3F88C5', '#B05060', '#2d6a9f', '#C9768A'], borderWidth: 0 }],
+    datasets: [{ data: topServicios.map(([, v]) => v), backgroundColor: serviciosColors, borderWidth: 0 }],
   };
   const chartHoras = {
     labels: horasOrdenadas.map(([k]) => k),
@@ -319,27 +321,28 @@ function AdminPanel() {
   const doughnutOpts = {
     responsive: true,
     maintainAspectRatio: false,
-    plugins: { legend: { position: 'bottom', labels: { font: { weight: 'bold' }, padding: 12 } } },
+    plugins: { legend: { display: false } },
   };
 
   return (
-    <div className="min-h-screen bg-[#F7F7FF] p-8 text-[#070707]">
-      <div className="mb-6">
+    <div className="min-h-screen bg-[#F7F7FF] text-[#070707]">
+      <div className="max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8">
+      <div className="mb-4 sm:mb-6">
         <Link to="/" className="text-[#8A2D3B] font-bold uppercase text-sm hover:text-[#070707] transition flex items-center gap-2 w-fit">
           Volver al Inicio
         </Link>
       </div>
 
-      <h1 className="text-4xl font-serif font-bold text-[#8A2D3B] mb-8 uppercase tracking-wider">
+      <h1 className="text-2xl sm:text-3xl lg:text-4xl font-serif font-bold text-[#8A2D3B] mb-4 sm:mb-8 uppercase tracking-wider">
         Panel de Administrador
       </h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
 
         {/* Tarjeta de Proximas Citas */}
-        <div className="bg-white p-6 shadow-md border-t-4 border-[#8A2D3B]">
+        <div className="bg-white p-4 sm:p-6 shadow-md border-t-4 border-[#8A2D3B]">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold">Proximas Citas ({citasFiltradas.length})</h2>
+            <h2 className="text-xl sm:text-2xl font-bold">Proximas Citas ({citasFiltradas.length})</h2>
             <div className="flex items-center gap-3">
               {filtroFecha && (
                 <button onClick={() => setFiltroFecha(null)} className="text-xs text-[#8A2D3B] font-bold uppercase hover:underline">
@@ -362,7 +365,7 @@ function AdminPanel() {
             <div className="max-h-64 overflow-y-auto pr-2">
               <ul className="divide-y divide-gray-200">
                 {citasFiltradas.map((cita) => (
-                  <li key={cita.id_cita} className="py-3 flex justify-between items-center border-b border-gray-100 last:border-0">
+                  <li key={cita.id_cita} className="py-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 border-b border-gray-100 last:border-0">
                     <div>
                       <p className="font-bold text-[#070707] uppercase text-sm">
                         {cita.usuario?.nombre || 'Cliente desconocido'}
@@ -382,7 +385,7 @@ function AdminPanel() {
                     
                     <button 
                       onClick={() => setCitaACompletar(cita.id_cita)}
-                      className="bg-green-50 text-green-700 border border-green-300 px-3 py-2 rounded text-xs font-bold uppercase hover:bg-green-600 hover:text-white transition shadow-sm ml-2"
+                      className="bg-green-50 text-green-700 border border-green-300 px-3 py-2 rounded text-xs font-bold uppercase hover:bg-green-600 hover:text-white transition shadow-sm self-start sm:self-center sm:ml-2 shrink-0"
                     >
                       Marcar como Completada
                     </button>
@@ -394,8 +397,8 @@ function AdminPanel() {
         </div>
 
         {/* Tarjeta de Gestion de Clientes */}
-        <div className="bg-white p-6 shadow-md border-t-4 border-[#070707]">
-          <h2 className="text-2xl font-bold mb-4">Clientes Registrados</h2>
+        <div className="bg-white p-4 sm:p-6 shadow-md border-t-4 border-[#070707]">
+          <h2 className="text-xl sm:text-2xl font-bold mb-4">Clientes Registrados</h2>
           <input
             type="text"
             placeholder="Buscar cliente por nombre..."
@@ -417,9 +420,9 @@ function AdminPanel() {
         </div>
 
         {/* Gestión de Cierres */}
-        <div className="bg-white p-6 shadow-md border-t-4 border-gray-400 md:col-span-2">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-black uppercase tracking-tight text-[#070707]">Gestión de Cierres</h2>
+        <div className="bg-white p-4 sm:p-6 shadow-md border-t-4 border-gray-400 md:col-span-2">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0 mb-4 sm:mb-6">
+            <h2 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-[#070707]">Gestión de Cierres</h2>
 
             <div className="flex bg-gray-100 p-1 rounded-lg border-2 border-gray-200">
               <button
@@ -536,8 +539,20 @@ function AdminPanel() {
               {/* Servicios más solicitados */}
               <div>
                 <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Servicios Más Solicitados</h3>
-                <div className="h-44 flex justify-center">
-                  <div className="w-full max-w-50">
+                <div className="h-40 sm:h-44 flex items-center justify-center gap-3 sm:gap-6">
+                  <div className="flex flex-col justify-center gap-3">
+                    {topServicios.map(([nombre, count], i) => {
+                      const pct = totalServicios > 0 ? Math.round((count / totalServicios) * 100) : 0;
+                      return (
+                        <div key={nombre} className="flex items-center gap-2 text-xs font-bold whitespace-nowrap">
+                          <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: serviciosColors[i] }} />
+                          <span>{nombre}</span>
+                          <span className="text-gray-400 ml-1">{pct}%</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="w-28 h-28 sm:w-36 sm:h-36 shrink-0">
                     <Doughnut data={chartServicios} options={doughnutOpts} />
                   </div>
                 </div>
@@ -563,6 +578,7 @@ function AdminPanel() {
           </div>
         )}
 
+      </div>
       </div>
 
       {/* Ficha del Cliente */}
