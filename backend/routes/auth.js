@@ -156,6 +156,59 @@ router.post('/logout', async (_req, res) => {
 
 const validarSesion = require('../middleware/authMiddleware');
 
+/**
+ * @swagger
+ * /auth/sync-google-user:
+ *   post:
+ *     summary: Sincronizar usuario de Google OAuth
+ *     description: |
+ *       Se invoca tras el login con Google. Comprueba si el usuario ya existe en la tabla `usuario`.
+ *       Si existe, devuelve su nombre y rol. Si no existe, lo crea con rol `cliente` y devuelve los mismos datos.
+ *     tags: [Autenticación]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               nombre:
+ *                 type: string
+ *                 example: "Juan García"
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: "juan@gmail.com"
+ *     responses:
+ *       200:
+ *         description: Datos del usuario sincronizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 nombre:
+ *                   type: string
+ *                   example: "Juan García"
+ *                 rol:
+ *                   type: string
+ *                   enum: [cliente, admin]
+ *                   example: "cliente"
+ *       401:
+ *         description: Token no proporcionado o sesión inválida
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Error al insertar el usuario en la base de datos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.post('/sync-google-user', validarSesion, async (req, res) => {
     const { nombre, email } = req.body;
     const userId = req.usuarioLogueado.id;

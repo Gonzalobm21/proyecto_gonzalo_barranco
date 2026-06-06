@@ -211,12 +211,12 @@ function Dashboard() {
                 fechaCasilla.setHours(0, 0, 0, 0);
                 const fechaStr = formatearFecha(dia, mesActual, anioActual);
                 
-                // Definimos las variables que le faltaban a tu código
+                // Definimos las variables
                 const esPasado = fechaCasilla < hoy;
                 const esHoy = fechaCasilla.getTime() === hoy.getTime();
                 const esDiaCerrado = diasCerrados.includes(fechaStr);
                 
-                // Agrupamos todo en tu variable deshabilitado
+                // Agrupamos todo en la variable deshabilitado
                 const deshabilitado = 
                   fechaCasilla.getDay() === 0 || 
                   fechaCasilla.getDay() === 6 || 
